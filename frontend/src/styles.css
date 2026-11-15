@@ -760,3 +760,124 @@ progress::-webkit-progress-value {
     padding: 35px 20px;
   }
 }
+/* Analytics: intrinsic SVG sizing and semantic HTML bars keep layouts responsive. */
+.scatter {
+  display: block;
+  width: 100%;
+  max-height: 520px;
+}
+.scatter text {
+  fill: #334155;
+  font-size: 12px;
+}
+.grid-line {
+  stroke: #e2e8f0;
+}
+.mean-line {
+  stroke: #64748b;
+  stroke-dasharray: 5 5;
+}
+.chart-point {
+  cursor: pointer;
+}
+.chart-point:focus {
+  outline: none;
+}
+.chart-point:focus circle,
+.chart-point:hover circle {
+  stroke: #0f172a;
+  stroke-width: 2;
+}
+.chart-tooltip {
+  min-height: 64px;
+  padding: 12px;
+  background: #f0f7f4;
+  border-radius: 8px;
+  margin: 12px 0;
+}
+.cohort-filter {
+  display: grid;
+  gap: 8px;
+  max-width: 300px;
+}
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  list-style: none;
+  padding: 0;
+  font-size: 13px;
+}
+.chart-legend li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.chart-legend span {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.evidence-row {
+  margin: 20px 0;
+}
+.stacked-bar {
+  display: flex;
+  height: 30px;
+  margin-top: 8px;
+  border-radius: 5px;
+  overflow: hidden;
+}
+.stacked-bar > div {
+  color: white;
+  text-align: center;
+  line-height: 30px;
+  overflow: hidden;
+}
+.component-groups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  margin: 24px 0;
+}
+.component-chart-row {
+  display: grid;
+  grid-template-columns: minmax(90px, 1fr) 1fr 36px;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  margin: 12px 0;
+}
+.component-chart-row .bar-track {
+  height: 14px;
+}
+main > .panel {
+  margin-bottom: 24px;
+}
+summary {
+  cursor: pointer;
+  padding: 12px 0;
+  font-weight: 600;
+}
+caption {
+  text-align: left;
+  padding: 12px;
+  color: #475569;
+}
+@media (max-width: 700px) {
+  .component-groups {
+    grid-template-columns: 1fr;
+  }
+  .scatter {
+    min-height: 250px;
+  }
+  .chart-legend {
+    gap: 10px;
+  }
+}
+.overview-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

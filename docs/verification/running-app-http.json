@@ -1,0 +1,53 @@
+{
+  "target": "http://localhost:8080",
+  "mode": "read-only HTTP against user-started original Docker app; updated frontend not deployed here",
+  "providers": 1000,
+  "encounters": 100000,
+  "checks": [
+    {
+      "request": "/api/health",
+      "status": 200
+    },
+    {
+      "request": "/api/analytics",
+      "status": 200
+    },
+    {
+      "request": "/api/providers?specialty=Cardiology&page_size=3",
+      "status": 200
+    },
+    {
+      "request": "/api/providers?specialty=Cardiology&page_size=3&page=2",
+      "status": 200
+    },
+    {
+      "request": "/api/providers/1",
+      "status": 200
+    },
+    {
+      "request": "/api/compare?ids=1&ids=6",
+      "status": 200
+    },
+    {
+      "request": "/api/compare?ids=1&ids=2",
+      "status": 422
+    },
+    {
+      "request": "/api/providers?page=0",
+      "status": 422
+    },
+    {
+      "request": "/api/providers/999999",
+      "status": 404
+    },
+    {
+      "request": "/api/pipeline",
+      "status": 200
+    },
+    {
+      "request": "/api/providers?specialty=Cardiology&min_quality=40&max_cost=1000&sort=cost",
+      "status": 200
+    }
+  ],
+  "result": "passed"
+}

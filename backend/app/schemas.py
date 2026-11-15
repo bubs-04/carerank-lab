@@ -64,3 +64,33 @@ class Analytics(BaseModel):
     locations: list[str]
     latest_run: RunView | None
     last_success: RunView | None
+
+
+class CohortPoint(BaseModel):
+    id: int
+    name: str
+    avg_cost: float
+    quality: float
+    highlighted: bool
+
+
+class QualityCost(BaseModel):
+    specialty: str
+    count: int
+    mean_cost: float | None
+    mean_score: float | None
+    items: list[CohortPoint]
+
+
+class SpecialtyEvidence(BaseModel):
+    specialty: str
+    eligible: int
+    insufficient_outcomes: int
+    low_completeness: int
+    not_processed: int
+
+
+class Evidence(BaseModel):
+    total: int
+    specialties: list[SpecialtyEvidence]
+    completeness: list[Bucket]
