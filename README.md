@@ -1,10 +1,28 @@
-# CareRank Lab
+# CareRank Lab 2.0
 
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB) ![React](https://img.shields.io/badge/React-19-149ECA) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1) ![License](https://img.shields.io/badge/License-MIT-green)
 
 An independent educational healthcare provider intelligence platform: reproducible synthetic data, transactional SQL processing, explainable specialty rankings, and a React dashboard.
 
 **All providers, encounters, outcomes and scores are fictional. This project is not affiliated with Garner and does not reproduce its proprietary methodology. Never use these scores for healthcare decisions.**
+
+## Existing installation: upgrade safely
+
+Follow [the 2.0 Mac upgrade guide](docs/UPGRADE_2.0_MAC.md). It keeps your original project directory, `.env` and database volume, and rebuilds only API/web with `--no-deps`. No migration or reseeding is needed. Do not use the fresh-install commands below to upgrade an existing dataset.
+
+[Engineering walkthrough](docs/CareRank_Lab_2.0_Engineering_Walkthrough.docx) · [Changelog](docs/CHANGELOG_2.0.md) · [2-minute demo](docs/DEMO_SCRIPT_2_MINUTES.md) · [2.0 verification](docs/VERIFICATION_2.0.md)
+
+## Start here on a Mac (fresh installation)
+
+Use [Mac setup](docs/MAC_SETUP_GUIDE.md) and the [beginner guide](docs/CareRank_Lab_Beginners_Guide.docx). From the extracted project root, with Docker Desktop running:
+
+```bash
+bash scripts/start_mac.sh
+```
+
+This path uses the Mac's shell and OpenSSL and does not require host Python or Make. If you already have the original app running, follow [Apply the 2.0 update](docs/UPGRADE_2.0_MAC.md); preserve your existing `.env` and database volume.
+
+[Historical 1.x Mac review results](docs/MAC_VERIFICATION_REPORT.md) distinguish new checks from the historical Linux build. The user reported opening the original site and comparing providers locally; this is a manual report, not an automated browser pass for the updated code.
 
 ## Features
 
@@ -14,6 +32,32 @@ An independent educational healthcare provider intelligence platform: reproducib
 - Risk-adjusted outcome residuals, normalized costs, shrinkage and minimum evidence thresholds.
 - Dashboard, provider search, specialty/location/quality/cost filters, pagination, profile and same-specialty comparison.
 - OpenAPI, Alembic migrations, pytest, Vitest, live full-stack DOM workflow and Playwright browser workflow.
+
+## The engineering problem
+
+A provider list alone hides differences in evidence volume, missing outcomes and component tradeoffs. This project makes those differences inspectable without sending the encounter dataset to the browser. Ranking and comparisons stay within specialties; absent evidence is never silently turned into a zero score.
+
+## Interactive analytics
+
+- **Quality vs. cost:** all eligible providers in a selected specialty, default Cardiology. Hover/focus for score and raw mean cost; click/Enter opens the existing profile. Diamonds have strictly higher-than-mean scores and lower-than-mean costs. Dashed references are SQL cohort means, not clinical targets. An expandable table lists every point.
+- **Component comparison:** grouped horizontal bars for outcome (60%), cost (25%), reliability (10%), volume (5%), on a fixed 0–100 scale. Exact component and weighted-point values accompany the existing detailed profiles. Up to three providers in one specialty remain supported.
+- **Evidence:** specialty eligibility stacks with exclusive reasons, plus outcome-completeness bins. Fewer than 30 observed outcomes takes precedence over low completeness; missing materializations and no-encounter cases are explicit. Missing evidence does not mean low quality.
+
+These charts use lightweight React SVG and semantic HTML rather than adding a chart package. Responsive sizing, text labels, keyboard actions, accessible tables, loading, error and empty states are explicit. Dense points may overlap; the table preserves access to every eligible provider. Real-browser visual verification is pending.
+
+## Data processing and score methodology
+
+The deterministic generator creates fictional providers and encounters. Validation precedes a transactionally replaced snapshot. PostgreSQL aggregates observed outcomes, raw mean cost, risk-adjusted outcome residuals and normalized cost ratios. Python calculates stored components and specialty ranks; API requests read these materialized results.
+
+With observed outcomes `n`, total encounters `N`, residual `r = mean(outcome − (0.95 − 0.30 × risk))`, and normalized specialty cost ratio `c`:
+
+- Shrinkage `w = n / (n + 50)`.
+- Outcome `clamp(50 + 250 × r × w, 0, 100)`.
+- Cost `clamp(50 + 50 × (1 − c) × w, 0, 100)`.
+- Reliability `100 × (n/N) × w`; volume `100 × min(N/200, 1)`.
+- Final score `0.60 × outcome + 0.25 × cost + 0.10 × reliability + 0.05 × volume`, rounded to two decimals, only when `n ≥ 30` and completeness `n/N ≥ 0.8`. Zero encounters is ineligible.
+
+Costs are normalized per procedure and risk before comparison with the specialty mean. The scatter intentionally shows raw mean cost, so it is not the cost component. Higher simulated scores or lower costs do not establish actual clinical superiority. The scoring algorithm, generator and assumptions are unchanged in 2.0.
 
 ## Architecture
 
@@ -30,7 +74,7 @@ flowchart TD
 
 ## Quick start with Docker Compose
 
-Prerequisites: Git, Python 3.12+ for setup, Docker Desktop or Docker Engine with Compose v2, and Make. Windows users can run the commands in WSL2. No paid services or API keys are needed.
+For the Make-based commands below: Python 3.9+ for the small setup script, Docker Desktop or Docker Engine with Compose v2 or newer, and Make. Git is needed only for cloning/version control; ZIP users can skip git clone. The application container itself uses Python 3.12. Windows users can run the commands in WSL2. No paid services or API keys are needed.
 
 ```bash
 git clone <YOUR_REPOSITORY_URL>
@@ -78,6 +122,9 @@ npm run dev
 
 ## Tests and measurements
 
+2.0 local checks: **28 backend passed / 14 PostgreSQL skipped; 13 frontend passed / 1 live skipped; production build, Ruff and Prettier passed.** Compose configuration parsed. Docker engine was unavailable; Playwright failed at Chrome launch before navigation (one failed, one not run). No actual upgraded screenshots or end-to-end pass are claimed. See [verification details and safe local steps](docs/VERIFICATION_2.0.md).
+
+
 ```bash
 make test                 # Python tests + frontend unit tests + production build
 make lint                 # Python lint and formatting
@@ -92,11 +139,11 @@ cd ../backend && python -m app.benchmark
 
 Integration tests require `TEST_DATABASE_URL` and replace data there. Without it, PostgreSQL integration tests are explicitly skipped. The live DOM test is skipped unless `LIVE_URL` is set. Playwright uses port 5173 by default; use `BASE_URL=http://localhost:8080 npm run e2e` for Compose.
 
-See [verification report](docs/IMPLEMENTATION_VERIFICATION_REPORT.md), [raw benchmark](docs/benchmark.json), and test result logs. Docker and browser execution limitations are recorded, not represented as passing checks. GitHub Actions is configured to exercise Compose and Playwright on a normal runner; it has not run remotely yet.
+See the [historical 1.x verification report](docs/IMPLEMENTATION_VERIFICATION_REPORT.md), [historical benchmark](docs/benchmark.json), and test result logs. Docker and browser execution limitations are recorded, not represented as passing checks. GitHub Actions is configured to exercise Compose and Playwright on a normal runner; it has not run remotely yet.
 
 ## Screenshots
 
-The Playwright workflow writes `docs/overview.png`, `docs/explorer.png`, `docs/comparison.png`, `docs/provider-profile.png`, and `docs/mobile.png`. Browser launch was blocked in the build environment, so screenshots are not included or fabricated. Run the command above locally, inspect the images, then add them to this README before publication.
+No 2.0 screenshots are included because Chrome aborted before navigation in this environment. [Capture instructions and exact filenames](docs/SCREENSHOTS_2.0.md) cover Overview, Analytics, Explorer, Profile, Comparison and two mobile layouts. Run Playwright locally and inspect the actual images before adding them to this README. No mockups are presented as screenshots.
 
 ## API examples
 
@@ -106,10 +153,14 @@ curl 'http://localhost:8000/api/providers?q=Demo&min_quality=45&max_cost=700&sor
 curl 'http://localhost:8000/api/providers/1'
 curl 'http://localhost:8000/api/compare?ids=1&ids=6'
 curl 'http://localhost:8000/api/analytics'
+curl 'http://localhost:8000/api/analytics/quality-cost?specialty=Cardiology'
+curl 'http://localhost:8000/api/analytics/evidence'
 curl 'http://localhost:8000/api/pipeline'
 ```
 
 Comparison accepts two or three distinct providers within one specialty. Bad parameters return 422, missing providers 404, and database failures 503. The API is deliberately read-only; pipeline execution requires CLI access.
+
+The two new analytics endpoints use provider/score joins and SQL aggregates, never encounter payloads. Unknown specialties return an empty cohort with null means. Evidence uses a left join so providers missing scores remain counted. Responses are documented at `/docs`.
 
 ## Technical decisions
 
@@ -117,6 +168,8 @@ Synchronous SQLAlchemy keeps a small database-backed API easy to follow. Postgre
 
 ## Documentation and learning
 
+- [Beginner guide](docs/CareRank_Lab_Beginners_Guide.md) and [Mac setup](docs/MAC_SETUP_GUIDE.md)
+- [Current Mac verification report](docs/MAC_VERIFICATION_REPORT.md)
 - [Complete technical guide](docs/CareRank_Lab_Complete_Technical_Guide.md)
 - [Interview preparation](docs/CareRank_Lab_Interview_Preparation.md)
 - [Exercises](docs/EXERCISES.md) and [separate solutions](docs/EXERCISE_SOLUTIONS.md)

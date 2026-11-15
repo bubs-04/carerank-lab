@@ -1,3 +1,4 @@
+import AnalyticsPage, { ComparisonChart } from "./Analytics";
 import { useState } from "react";
 import {
   Activity,
@@ -62,7 +63,13 @@ function Bars({ items }: { items: { name: string; count: number }[] }) {
     </div>
   );
 }
-function Overview({ open }: { open: () => void }) {
+function Overview({
+  open,
+  analyze,
+}: {
+  open: () => void;
+  analyze: () => void;
+}) {
   const { data, error, loading } = useApi<Analytics>("/api/analytics");
   if (!data) return <State error={error} loading={loading} />;
   return (
@@ -76,9 +83,12 @@ function Overview({ open }: { open: () => void }) {
             score.
           </p>
         </div>
-        <button className="primary" onClick={open}>
-          Explore providers <ArrowUpRight size={16} />
-        </button>
+        <div className="overview-actions">
+          <button onClick={analyze}>Explore analytics</button>
+          <button className="primary" onClick={open}>
+            Explore providers <ArrowUpRight size={16} />
+          </button>
+        </div>
       </div>
       <div className="metrics">
         {[
@@ -97,7 +107,7 @@ function Overview({ open }: { open: () => void }) {
           {
             label: "Eligible for ranking",
             value: num(data.scored),
-            note: "30+ observed outcomes required",
+            note: "30+ observed · 80%+ completeness",
             Icon: ShieldCheck,
           },
           {
@@ -201,56 +211,59 @@ function Details({ ids, back }: { ids: number[]; back: () => void }) {
       {!data ? (
         <State error={error} loading={loading} />
       ) : (
-        <div className="compare-grid">
-          {rows.map((p) => (
-            <section className="panel profile" key={p.id}>
-              <div className="avatar">{String(p.id).padStart(4, "0")}</div>
-              <h2>{p.name}</h2>
-              <p>
-                {p.specialty} · {p.location}
-              </p>
-              <ScoreBadge value={p.quality} />
-              <p className="caption">
-                {p.rank === null ? "Not ranked" : `Specialty rank #${p.rank}`} ·{" "}
-                {p.components.status}
-              </p>
-              <dl>
-                <dt>Encounters</dt>
-                <dd>{num(p.encounters)}</dd>
-                <dt>Observed outcomes</dt>
-                <dd>{num(p.observed)}</dd>
-                <dt>Mean encounter cost</dt>
-                <dd>{money(p.avg_cost)}</dd>
-                <dt>Outcome completeness</dt>
-                <dd>{(p.components.completeness * 100).toFixed(1)}%</dd>
-                <dt>Shrinkage weight</dt>
-                <dd>{p.components.shrinkage.toFixed(3)}</dd>
-                <dt>Outcome residual</dt>
-                <dd>{(p.components.residual * 100).toFixed(2)} pp</dd>
-                <dt>Normalized cost ratio</dt>
-                <dd>{p.components.cost_ratio.toFixed(3)}</dd>
-              </dl>
-              <h3>Score breakdown</h3>
-              {(["outcome", "cost", "reliability", "volume"] as const).map(
-                (key, i) => (
-                  <div className="component" key={key}>
-                    <div>
-                      <span>
-                        {key} <small>· {[60, 25, 10, 5][i]}%</small>
-                      </span>
-                      <b>{p.components[key].toFixed(1)}</b>
+        <>
+          {comparison && <ComparisonChart providers={rows} />}
+          <div className="compare-grid">
+            {rows.map((p) => (
+              <section className="panel profile" key={p.id}>
+                <div className="avatar">{String(p.id).padStart(4, "0")}</div>
+                <h2>{p.name}</h2>
+                <p>
+                  {p.specialty} · {p.location}
+                </p>
+                <ScoreBadge value={p.quality} />
+                <p className="caption">
+                  {p.rank === null ? "Not ranked" : `Specialty rank #${p.rank}`}{" "}
+                  · {p.components.status}
+                </p>
+                <dl>
+                  <dt>Encounters</dt>
+                  <dd>{num(p.encounters)}</dd>
+                  <dt>Observed outcomes</dt>
+                  <dd>{num(p.observed)}</dd>
+                  <dt>Mean encounter cost</dt>
+                  <dd>{money(p.avg_cost)}</dd>
+                  <dt>Outcome completeness</dt>
+                  <dd>{(p.components.completeness * 100).toFixed(1)}%</dd>
+                  <dt>Shrinkage weight</dt>
+                  <dd>{p.components.shrinkage.toFixed(3)}</dd>
+                  <dt>Outcome residual</dt>
+                  <dd>{(p.components.residual * 100).toFixed(2)} pp</dd>
+                  <dt>Normalized cost ratio</dt>
+                  <dd>{p.components.cost_ratio.toFixed(3)}</dd>
+                </dl>
+                <h3>Score breakdown</h3>
+                {(["outcome", "cost", "reliability", "volume"] as const).map(
+                  (key, i) => (
+                    <div className="component" key={key}>
+                      <div>
+                        <span>
+                          {key} <small>· {[60, 25, 10, 5][i]}%</small>
+                        </span>
+                        <b>{p.components[key].toFixed(1)}</b>
+                      </div>
+                      <progress
+                        aria-label={key + " component"}
+                        max="100"
+                        value={p.components[key]}
+                      />
                     </div>
-                    <progress
-                      aria-label={key + " component"}
-                      max="100"
-                      value={p.components[key]}
-                    />
-                  </div>
-                ),
-              )}
-            </section>
-          ))}
-        </div>
+                  ),
+                )}
+              </section>
+            ))}
+          </div>
+        </>
       )}
       <section className="panel method">
         <h2>How to read these scores</h2>
@@ -500,9 +513,9 @@ function Explorer({ open }: { open: (ids: number[]) => void }) {
   );
 }
 export default function App() {
-  const [page, setPage] = useState<"overview" | "providers" | "details">(
-    "overview",
-  );
+  const [page, setPage] = useState<
+    "overview" | "analytics" | "providers" | "details"
+  >("overview");
   const [ids, setIds] = useState<number[]>([]);
   return (
     <div className="app">
@@ -529,10 +542,18 @@ export default function App() {
             <BarChart3 size={19} /> Overview
           </button>
           <button
-            aria-current={page !== "overview" ? "page" : undefined}
+            aria-current={
+              page === "providers" || page === "details" ? "page" : undefined
+            }
             onClick={() => setPage("providers")}
           >
             <Users size={19} /> Provider explorer
+          </button>
+          <button
+            aria-current={page === "analytics" ? "page" : undefined}
+            onClick={() => setPage("analytics")}
+          >
+            <Activity size={19} /> Analytics
           </button>
         </nav>
         <div className="sidebar-note">
@@ -557,7 +578,9 @@ export default function App() {
                 ? "Overview"
                 : page === "providers"
                   ? "Providers"
-                  : "Provider evidence"}
+                  : page === "analytics"
+                    ? "Analytics"
+                    : "Provider evidence"}
             </b>
           </div>
           <span className="pill">● Synthetic environment</span>
@@ -572,7 +595,17 @@ export default function App() {
         </div>
         <main>
           {page === "overview" ? (
-            <Overview open={() => setPage("providers")} />
+            <Overview
+              open={() => setPage("providers")}
+              analyze={() => setPage("analytics")}
+            />
+          ) : page === "analytics" ? (
+            <AnalyticsPage
+              open={(next) => {
+                setIds(next);
+                setPage("details");
+              }}
+            />
           ) : page === "providers" ? (
             <Explorer
               open={(next) => {

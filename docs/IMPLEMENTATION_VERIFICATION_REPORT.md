@@ -1,5 +1,7 @@
 # CareRank Lab Implementation Verification Report
 
+Historical Linux build record. See [MAC_VERIFICATION_REPORT.md](MAC_VERIFICATION_REPORT.md) for the later Mac review and updated-code checks. The results below are retained as original evidence, not repeated Mac or Docker verification.
+
 Verified November 14, 2026. The native application and database workflow are verified. The full final quality gate remains incomplete because Docker is unavailable and Chromium cannot launch in this environment. This package is ready for local review, not represented as production software.
 
 ## Results

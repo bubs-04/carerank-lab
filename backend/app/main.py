@@ -6,12 +6,12 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from .db import get_session
-from . import repository
-from .schemas import Analytics, ProviderPage, ProviderView, RunView
+from . import repository, analytics as cohort_analytics
+from .schemas import Analytics, ProviderPage, ProviderView, RunView, QualityCost, Evidence
 
 app = FastAPI(
     title="CareRank Lab",
-    version="1.0.0",
+    version="2.0.0",
     description="Synthetic educational intelligence. Not clinical advice.",
 )
 DB = Annotated[Session, Depends(get_session)]
@@ -75,3 +75,23 @@ def analytics(db: DB):
 @app.get("/api/pipeline", response_model=list[RunView])
 def pipeline_status(db: DB):
     return repository.runs(db)
+
+
+@app.get("/api/analytics/quality-cost", response_model=QualityCost)
+def quality_cost(db: DB, specialty: str = Query("Cardiology", min_length=1, max_length=50)):
+    """All scored providers in one specialty, raw mean costs and SQL cohort means.
+
+    Highlight means strictly below mean cost AND above mean heuristic score.
+    Unknown specialties return an empty cohort, not a cross-specialty fallback.
+    """
+    return cohort_analytics.quality_cost(db, specialty)
+
+
+@app.get("/api/analytics/evidence", response_model=Evidence)
+def evidence(db: DB):
+    """Disjoint eligibility counts and exact completeness bins across all providers.
+
+    Insufficient outcomes takes precedence over low completeness. Zero encounters
+    have undefined completeness. Missing score rows are reported as not processed.
+    """
+    return cohort_analytics.evidence(db)

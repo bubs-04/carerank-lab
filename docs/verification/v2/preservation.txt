@@ -1,0 +1,13 @@
+Byte-identical to the uploaded baseline:
+compose.yaml
+backend/Dockerfile
+frontend/Dockerfile
+backend/app/scoring.py
+backend/app/generator.py
+backend/app/pipeline.py
+backend/app/models.py
+backend/app/aggregate.sql
+frontend/src/api.ts
+frontend/src/api.test.tsx
+frontend/package.json
+frontend/package-lock.json

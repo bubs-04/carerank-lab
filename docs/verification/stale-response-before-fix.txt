@@ -1,0 +1,33 @@
+
+> carerank-lab@1.0.0 test
+> vitest run src/api.test.tsx
+
+
+ RUN  v5.1.0 <workspace>/review/carerank-lab/frontend
+
+ ❯ src/api.test.tsx (1 test | 1 failed) 127ms
+   × keeps the newest result when an old response body finishes late 126ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/api.test.tsx > keeps the newest result when an old response body finishes late
+AssertionError: expected 'old' to be 'new' // Object.is equality
+
+Expected: "new"
+Received: "old"
+
+ ❯ src/api.test.tsx:24:37
+     22|   await waitFor(() => expect(result.current.data?.name).toBe("new"));
+     23|   await act(async () => { finishOld({ name: "old" }); });
+     24|   expect(result.current.data?.name).toBe("new");
+       |                                     ^
+     25| });
+     26|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed (1)
+   Start at  16:42:16
+   Duration  1.65s (environment 78%, tests 9%, setup 8%, import 3%, transform 2%)

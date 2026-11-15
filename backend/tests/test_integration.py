@@ -164,3 +164,19 @@ def test_zero_events_and_case_mix(engine):
             assert parts[1]["outcome"] > parts[0]["outcome"]
     finally:
         run_pipeline(100, 10000, engine=engine)
+
+
+def test_postgres_cohort_and_evidence(client, engine):
+    cohort = client.get("/api/analytics/quality-cost?specialty=Cardiology").json()
+    with Session(engine) as db:
+        expected = db.scalar(
+            select(func.count())
+            .select_from(Provider)
+            .join(Score)
+            .where(Provider.specialty == "Cardiology", Score.quality.is_not(None))
+        )
+    assert cohort["count"] == len(cohort["items"]) == expected
+    evidence = client.get("/api/analytics/evidence").json()
+    assert evidence["total"] == 100
+    assert sum(b["count"] for b in evidence["completeness"]) == 100
+    assert sum(sum(v for k, v in r.items() if k != "specialty") for r in evidence["specialties"]) == 100

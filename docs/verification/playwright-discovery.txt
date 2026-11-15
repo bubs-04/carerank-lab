@@ -1,0 +1,7 @@
+
+> carerank-lab@1.0.0 e2e
+> playwright test --list
+
+Listing tests:
+  workflow.spec.ts:2:1 › live data supports search, pagination, details, and comparison
+Total: 1 test in 1 file

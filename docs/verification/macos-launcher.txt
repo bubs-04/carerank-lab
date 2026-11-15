@@ -1,0 +1,8 @@
+test_bad_configuration_does_not_start_services (test_start_mac.LauncherTests.test_bad_configuration_does_not_start_services) ... ok
+test_creates_private_configuration_and_preserves_it (test_start_mac.LauncherTests.test_creates_private_configuration_and_preserves_it) ... ok
+test_unavailable_engine_does_not_create_configuration (test_start_mac.LauncherTests.test_unavailable_engine_does_not_create_configuration) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 1.012s
+
+OK

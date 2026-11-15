@@ -64,3 +64,44 @@ test("live data supports search, pagination, details, and comparison", async ({
     ),
   ).toBeTruthy();
 });
+
+test("analytics covers the full cohort and supports profile navigation on mobile", async ({
+  page,
+  request,
+}) => {
+  const response = await request.get(
+    "/api/analytics/quality-cost?specialty=Cardiology",
+  );
+  expect(response.ok()).toBeTruthy();
+  const cohort = await response.json();
+  expect(cohort.count).toBeGreaterThan(12);
+  await page.goto("/");
+  await page.getByRole("button", { name: "Analytics", exact: true }).click();
+  await expect(page.getByRole("button", { name: /^Open / })).toHaveCount(
+    cohort.count,
+  );
+  await expect(
+    page.getByRole("heading", { name: "Ranking eligibility by specialty" }),
+  ).toBeVisible();
+  await page.screenshot({ path: "../docs/analytics.png", fullPage: true });
+  await page.getByLabel("Comparable specialty").selectOption("Neurology");
+  await expect(page.getByRole("group")).toHaveAccessibleName(/for Neurology/);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({
+    path: "../docs/mobile-analytics.png",
+    fullPage: true,
+  });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBeTruthy();
+  await page
+    .getByRole("button", { name: /^Open / })
+    .first()
+    .focus();
+  await page.keyboard.press("Enter");
+  await expect(
+    page.getByRole("heading", { name: "Provider profile" }),
+  ).toBeVisible();
+});

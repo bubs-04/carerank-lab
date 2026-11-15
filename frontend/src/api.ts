@@ -20,9 +20,12 @@ export function useApi<T>(url: string) {
         }
         return r.json();
       })
-      .then((data) => setState({ data, error: "", loading: false }))
+      .then((data) => {
+        if (!controller.signal.aborted)
+          setState({ data, error: "", loading: false });
+      })
       .catch((e) => {
-        if (e.name !== "AbortError")
+        if (!controller.signal.aborted && e.name !== "AbortError")
           setState({ data: null, error: e.message, loading: false });
       });
     return () => controller.abort();
