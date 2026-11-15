@@ -16,7 +16,7 @@ test("live data supports search, pagination, details, and comparison", async ({
   await page.screenshot({ path: "../docs/overview.png", fullPage: true });
   await page.getByRole("button", { name: "Explore providers" }).click();
   await page
-    .getByLabel("Specialty", { exact: true })
+    .getByRole("combobox", { name: "Specialty", exact: true })
     .selectOption("Cardiology");
   await expect(
     page.getByRole("button", { name: body.items[0].name, exact: true }),
@@ -85,7 +85,9 @@ test("analytics covers the full cohort and supports profile navigation on mobile
   ).toBeVisible();
   await page.screenshot({ path: "../docs/analytics.png", fullPage: true });
   await page.getByLabel("Comparable specialty").selectOption("Neurology");
-  await expect(page.getByRole("group")).toHaveAccessibleName(/for Neurology/);
+  await expect(
+    page.getByRole("group", { name: /Quality versus cost for Neurology/ }),
+  ).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({
     path: "../docs/mobile-analytics.png",
