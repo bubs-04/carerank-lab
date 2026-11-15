@@ -1,0 +1,13 @@
+{
+  "providers": 1000,
+  "encounters": 100000,
+  "seed": 42,
+  "pipeline_seconds": 3.869,
+  "search_runs": 100,
+  "warmups": 5,
+  "search_median_ms": 1.772,
+  "search_p95_ms": 2.475,
+  "python": "3.12.14",
+  "postgresql": "PostgreSQL 16.2 on x86_64-pc-linux-gnu, compiled by gcc (GCC) 10.2.1 20210130 (Red Hat 10.2.1-11), 64-bit",
+  "method": "In-process SQLAlchemy count + filtered page + serialization; not HTTP latency or a load test"
+}
