@@ -1,0 +1,62 @@
+{
+  "database": "isolated SQLite; not PostgreSQL or the existing Mac database",
+  "dataset_id": "mj5m-pzi6",
+  "snapshot_id": "ad92986b-e165-4be4-a088-03ea36da6e7e",
+  "checksum": "e04c8bac04ebb4cead8fad1d5a902cd7b793a538bbf64b0102790eff2de5eee0",
+  "scope": {
+    "selection": "source-order-prefix",
+    "max_rows": 1000,
+    "fields": [
+      "npi",
+      "ind_enrl_id",
+      "org_pac_id",
+      "adrs_id",
+      "pri_spec",
+      "citytown",
+      "state"
+    ]
+  },
+  "provenance": {
+    "mode": "cms",
+    "dataset_id": "mj5m-pzi6",
+    "metadata_url": "https://data.cms.gov/provider-data/api/1/metastore/schemas/dataset/items/mj5m-pzi6?show-reference-ids",
+    "download_url": "https://data.cms.gov/provider-data/sites/default/files/resources/52c3f098d7e56028a298fd297cb0b38d_1793398546/DAC_NationalDownloadableFile.csv",
+    "distribution_id": "46c0315d-129f-5d11-98a6-fffcfd8a2678",
+    "modified": "2026-10-30",
+    "release": "2026-11-12",
+    "issued": "2023-08-17",
+    "license": null,
+    "access_level": "public",
+    "retrieval_method": "bounded_csv_stream",
+    "metadata_fingerprint": "338bb2fc5490e97f3dbdc944f3b7aa5cf929735243c445b80b662c6b4fa0973e"
+  },
+  "created_at": "2026-11-15T20:40:36.207319",
+  "received": 1000,
+  "valid": 1000,
+  "rejected": 0,
+  "warning_findings": 0,
+  "distinct_npis": 421,
+  "retained_versions": 1,
+  "runs": [
+    {
+      "id": "222421e3-5b89-458a-a759-9133fb57b61c",
+      "status": "succeeded",
+      "snapshot_id": "ad92986b-e165-4be4-a088-03ea36da6e7e",
+      "duration_seconds": 8.11393241584301
+    },
+    {
+      "id": "6a2a2059-5058-4a77-b646-0625e406b6cb",
+      "status": "no_change",
+      "snapshot_id": "ad92986b-e165-4be4-a088-03ea36da6e7e",
+      "duration_seconds": 7.669776999857277
+    }
+  ],
+  "fixture_comparison": {
+    "added": 1,
+    "removed": 1,
+    "changed": 1,
+    "unchanged": 2,
+    "specialty_changes": 1,
+    "location_changes": 1
+  }
+}

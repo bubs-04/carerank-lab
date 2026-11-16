@@ -1,0 +1,17 @@
+Byte-identical to the delivered 2.0 baseline:
+compose.yaml
+backend/Dockerfile
+frontend/Dockerfile
+backend/requirements.txt
+frontend/package.json
+frontend/package-lock.json
+backend/app/scoring.py
+backend/app/generator.py
+backend/app/pipeline.py
+backend/app/models.py
+backend/app/aggregate.sql
+backend/migrations/versions/001_initial.py
+frontend/src/api.ts
+frontend/src/api.test.tsx
+frontend/src/Analytics.tsx
+frontend/src/Analytics.test.tsx

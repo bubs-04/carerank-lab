@@ -1,0 +1,9 @@
+{"event":"ingestion_started","mode":"fixture","run_id":"03327cd0-3b1d-497c-839a-be0c69dd156f"}
+{"event":"ingestion_finished","run_id":"03327cd0-3b1d-497c-839a-be0c69dd156f","status":"succeeded"}
+{"error_code":null,"received":5,"rejected":1,"run_id":"03327cd0-3b1d-497c-839a-be0c69dd156f","snapshot_id":"5eef02ae-471c-438f-9bab-97d09e5bff8c","status":"succeeded","valid":4}
+{"event":"ingestion_started","mode":"fixture","run_id":"40a12d05-0d46-4a61-910c-6158d82bd62f"}
+{"event":"ingestion_finished","run_id":"40a12d05-0d46-4a61-910c-6158d82bd62f","status":"succeeded"}
+{"error_code":null,"received":5,"rejected":1,"run_id":"40a12d05-0d46-4a61-910c-6158d82bd62f","snapshot_id":"29459f45-e223-42bb-9358-5b72792a9f98","status":"succeeded","valid":4}
+{"event":"ingestion_started","mode":"fixture","run_id":"e993a5d4-1e3f-4cee-87d6-eb1a351b2750"}
+{"event":"ingestion_finished","run_id":"e993a5d4-1e3f-4cee-87d6-eb1a351b2750","status":"no_change"}
+{"error_code":null,"received":5,"rejected":1,"run_id":"e993a5d4-1e3f-4cee-87d6-eb1a351b2750","snapshot_id":"29459f45-e223-42bb-9358-5b72792a9f98","status":"no_change","valid":4}

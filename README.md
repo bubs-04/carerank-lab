@@ -1,16 +1,30 @@
-# CareRank Lab 2.0
+# CareRank Lab 3.0
 
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB) ![React](https://img.shields.io/badge/React-19-149ECA) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1) ![License](https://img.shields.io/badge/License-MIT-green)
 
 An independent educational healthcare provider intelligence platform: reproducible synthetic data, transactional SQL processing, explainable specialty rankings, and a React dashboard.
 
-**All providers, encounters, outcomes and scores are fictional. This project is not affiliated with Garner and does not reproduce its proprietary methodology. Never use these scores for healthcare decisions.**
+**The ranking workspace uses fictional providers, encounters and scores. The separate Data Operations registry captures public CMS source records and clearly labeled test fixtures; CMS identities never receive synthetic scores. No patient records are ingested. This project is not affiliated with CMS or Garner and is not suitable for healthcare decisions.**
+
+## CareRank 3.0: versioned public registry
+
+A CLI resolves the official CMS `mj5m-pzi6` metadata, streams a bounded CSV prefix, validates source identities, records provenance, and atomically publishes versioned captures. Data Operations answers what arrived, what changed, whether processing finished, and which rows need review. The existing synthetic ranking lab is preserved.
+
+- Documented identity: NPI + enrollment + optional group PAC ID + address ID; multiple rows per clinician remain distinct.
+- Six isolated registry tables, migration 002, durable run audits, ordered selected-content checksums, idempotent version reuse and PostgreSQL publication locking.
+- Explainable accepted-record comparisons and validation deltas, with explicit bounded-sample caveats.
+- Read-only DataOps APIs and UI; CLI-only external ingestion, no unauthenticated trigger endpoint.
+- Deterministic offline fixtures for CI; separately opt-in live CMS tests.
+
+**Executed evidence:** 67 backend tests passed / 17 skipped (16 PostgreSQL, 1 optional live); 20 frontend tests passed / 1 optional live-DOM skipped. A separate real CLI ingestion captured 1,000 CMS rows representing 421 NPIs in isolated SQLite, with 1,000 valid / 0 rejected / 0 warnings; a rerun reused one version. PostgreSQL and browser verification remain pending. No new screenshots are claimed.
+
+[Data engineering guide](docs/CareRank_3.0_Data_Engineering_Guide.docx) · [API](docs/API_3.0.md) · [Validation rules](docs/VALIDATION_3.0.md) · [Verification](docs/VERIFICATION_3.0.md) · [Changelog](docs/CHANGELOG_3.0.md) · [Exercises](docs/EXERCISES_3.0.md) · [Demo](docs/DEMO_3.0_2_MINUTES.md)
 
 ## Existing installation: upgrade safely
 
-Follow [the 2.0 Mac upgrade guide](docs/UPGRADE_2.0_MAC.md). It keeps your original project directory, `.env` and database volume, and rebuilds only API/web with `--no-deps`. No migration or reseeding is needed. Do not use the fresh-install commands below to upgrade an existing dataset.
+Use [the 3.0 Mac upgrade procedure](docs/UPGRADE_3.0_MAC.md). Back up your database, preserve `.env` and the Compose volume, check/apply the supplied patch on `feat/cms-data-ingestion`, run additive migration 002, and rebuild only API/web with `--no-deps`. Do not use the fresh-install seed path to upgrade existing data.
 
-[Engineering walkthrough](docs/CareRank_Lab_2.0_Engineering_Walkthrough.docx) · [Changelog](docs/CHANGELOG_2.0.md) · [2-minute demo](docs/DEMO_SCRIPT_2_MINUTES.md) · [2.0 verification](docs/VERIFICATION_2.0.md)
+Private GitHub authentication was unavailable. This implementation extends the exact 2.0 ZIP delivered earlier; newer remote commits were not inspected. If the patch check fails against your branch, reconcile with a current branch ZIP rather than overwriting it. Nothing was pushed, merged or deployed.
 
 ## Start here on a Mac (fresh installation)
 
@@ -20,7 +34,7 @@ Use [Mac setup](docs/MAC_SETUP_GUIDE.md) and the [beginner guide](docs/CareRank_
 bash scripts/start_mac.sh
 ```
 
-This path uses the Mac's shell and OpenSSL and does not require host Python or Make. If you already have the original app running, follow [Apply the 2.0 update](docs/UPGRADE_2.0_MAC.md); preserve your existing `.env` and database volume.
+This path uses the Mac's shell and OpenSSL and does not require host Python or Make. If you already have the original app running, follow [Apply the 3.0 update](docs/UPGRADE_3.0_MAC.md); preserve your existing `.env` and database volume.
 
 [Historical 1.x Mac review results](docs/MAC_VERIFICATION_REPORT.md) distinguish new checks from the historical Linux build. The user reported opening the original site and comparing providers locally; this is a manual report, not an automated browser pass for the updated code.
 
@@ -44,6 +58,34 @@ A provider list alone hides differences in evidence volume, missing outcomes and
 - **Evidence:** specialty eligibility stacks with exclusive reasons, plus outcome-completeness bins. Fewer than 30 observed outcomes takes precedence over low completeness; missing materializations and no-encounter cases are explicit. Missing evidence does not mean low quality.
 
 These charts use lightweight React SVG and semantic HTML rather than adding a chart package. Responsive sizing, text labels, keyboard actions, accessible tables, loading, error and empty states are explicit. Dense points may overlap; the table preserves access to every eligible provider. Real-browser visual verification is pending.
+
+## Public registry architecture (separate from ranking)
+
+```mermaid
+flowchart TD
+  CLI[Operator CLI] --> Audit[Durable run audit]
+  CLI --> CMS[CMS metadata and bounded CSV]
+  CMS --> V[Projection and validation]
+  V --> T[Atomic publication transaction]
+  T --> R[(Registry snapshots and records)]
+  T --> F[(Findings and change summaries)]
+  R --> API[Read-only DataOps API]
+  F --> API
+  API --> UI[Data Operations page]
+```
+
+[Architecture diagram](docs/architecture_3.0.png). Registry tables have no relationships to synthetic scores. The source-order prefix is not a representative national population; removed sample records are not proven clinician departures. Checksum covers selected fields in capture order, not the entire source CSV. `no_change` means an existing matching version was reused, including a possible reversion to older content.
+
+After migrating the existing database, run from the project root:
+
+```bash
+docker compose run --rm --no-deps api python -m app.ingestion --max-rows 1000
+# Offline fixture examples; separate source history:
+docker compose run --rm --no-deps api python -m app.ingestion --fixture tests/fixtures/cms_registry_a.csv --max-rows 5
+docker compose run --rm --no-deps api python -m app.ingestion --fixture tests/fixtures/cms_registry_b.csv --max-rows 5
+```
+
+Official source: [CMS dataset](https://data.cms.gov/provider-data/dataset/mj5m-pzi6), [API FAQ](https://data.cms.gov/provider-data/about), [data dictionary](https://data.cms.gov/provider-data/sites/default/files/data_dictionaries/physician/DOC_Data_Dictionary.pdf). Release metadata is captured at retrieval; do not hard-code a release date. No source-specific API key is required.
 
 ## Data processing and score methodology
 
@@ -122,7 +164,7 @@ npm run dev
 
 ## Tests and measurements
 
-2.0 local checks: **28 backend passed / 14 PostgreSQL skipped; 13 frontend passed / 1 live skipped; production build, Ruff and Prettier passed.** Compose configuration parsed. Docker engine was unavailable; Playwright failed at Chrome launch before navigation (one failed, one not run). No actual upgraded screenshots or end-to-end pass are claimed. See [verification details and safe local steps](docs/VERIFICATION_2.0.md).
+**Historical 2.0 checks** (see the 3.0 report above for current results): **28 backend passed / 14 PostgreSQL skipped; 13 frontend passed / 1 live skipped; production build, Ruff and Prettier passed.** Compose configuration parsed. Docker engine was unavailable; Playwright failed at Chrome launch before navigation (one failed, one not run). No actual upgraded screenshots or end-to-end pass are claimed. See [verification details and safe local steps](docs/VERIFICATION_2.0.md).
 
 
 ```bash
@@ -143,7 +185,7 @@ See the [historical 1.x verification report](docs/IMPLEMENTATION_VERIFICATION_RE
 
 ## Screenshots
 
-No 2.0 screenshots are included because Chrome aborted before navigation in this environment. [Capture instructions and exact filenames](docs/SCREENSHOTS_2.0.md) cover Overview, Analytics, Explorer, Profile, Comparison and two mobile layouts. Run Playwright locally and inspect the actual images before adding them to this README. No mockups are presented as screenshots.
+No new 3.0 screenshots are included because Chrome aborted before navigation in this environment. The DataOps workflow will write `docs/dataops.png` and `docs/mobile-dataops.png` when run locally after the two fixture jobs with `DATAOPS_E2E=1`. [Capture instructions and exact filenames](docs/SCREENSHOTS_2.0.md) cover Overview, Analytics, Explorer, Profile, Comparison and two mobile layouts. Run Playwright locally and inspect the actual images before adding them to this README. No mockups are presented as screenshots.
 
 ## API examples
 
@@ -194,4 +236,4 @@ No authentication, authorization, clinical validation, patient-level longitudina
 
 ## AI assistance
 
-ChatGPT generated the implementation, tests and documentation, then executed the checks described in the verification report. Prabhat supplied the scope and learning goals. No independent human code review or hands-on modification by Prabhat is claimed. See the exercises before presenting the project as understood. MIT licensed.
+AI assisted the implementation, tests and documentation, including the registry upgrade, and executed the checks explicitly described in the verification reports. Prabhat supplied the scope and learning goals. No independent human code review or hands-on modification by Prabhat is claimed. See the exercises before presenting the project as understood. MIT licensed.

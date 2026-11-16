@@ -1,0 +1,1938 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "CareRank Lab",
+    "description": "Synthetic educational intelligence. Not clinical advice.",
+    "version": "3.0.0"
+  },
+  "paths": {
+    "/api/health": {
+      "get": {
+        "summary": "Health",
+        "operationId": "health_api_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Health Api Health Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/providers": {
+      "get": {
+        "summary": "Providers",
+        "operationId": "providers_api_providers_get",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100,
+              "default": "",
+              "title": "Q"
+            }
+          },
+          {
+            "name": "specialty",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Specialty"
+            }
+          },
+          {
+            "name": "location",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Location"
+            }
+          },
+          {
+            "name": "min_quality",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "maximum": 100,
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Min Quality"
+            }
+          },
+          {
+            "name": "max_cost",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Max Cost"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Page Size"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "quality",
+                "cost"
+              ],
+              "type": "string",
+              "default": "quality",
+              "title": "Sort"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderPage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/compare": {
+      "get": {
+        "summary": "Compare",
+        "operationId": "compare_api_compare_get",
+        "parameters": [
+          {
+            "name": "ids",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              },
+              "minItems": 2,
+              "maxItems": 3,
+              "title": "Ids"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProviderView"
+                  },
+                  "title": "Response Compare Api Compare Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/providers/{provider_id}": {
+      "get": {
+        "summary": "Detail",
+        "operationId": "detail_api_providers__provider_id__get",
+        "parameters": [
+          {
+            "name": "provider_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Provider Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/analytics": {
+      "get": {
+        "summary": "Analytics",
+        "operationId": "analytics_api_analytics_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Analytics"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/pipeline": {
+      "get": {
+        "summary": "Pipeline Status",
+        "operationId": "pipeline_status_api_pipeline_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/app__schemas__RunView"
+                  },
+                  "type": "array",
+                  "title": "Response Pipeline Status Api Pipeline Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/analytics/quality-cost": {
+      "get": {
+        "summary": "Quality Cost",
+        "description": "All scored providers in one specialty, raw mean costs and SQL cohort means.\n\nHighlight means strictly below mean cost AND above mean heuristic score.\nUnknown specialties return an empty cohort, not a cross-specialty fallback.",
+        "operationId": "quality_cost_api_analytics_quality_cost_get",
+        "parameters": [
+          {
+            "name": "specialty",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 50,
+              "default": "Cardiology",
+              "title": "Specialty"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QualityCost"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/analytics/evidence": {
+      "get": {
+        "summary": "Evidence",
+        "description": "Disjoint eligibility counts and exact completeness bins across all providers.\n\nInsufficient outcomes takes precedence over low completeness. Zero encounters\nhave undefined completeness. Missing score rows are reported as not processed.",
+        "operationId": "evidence_api_analytics_evidence_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Evidence"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/dataops/status": {
+      "get": {
+        "tags": [
+          "Public registry DataOps"
+        ],
+        "summary": "Status",
+        "description": "Latest attempt and successful/no-change run; fixture history is explicitly separate.",
+        "operationId": "status_api_dataops_status_get",
+        "parameters": [
+          {
+            "name": "mode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "cms",
+                "fixture"
+              ],
+              "type": "string",
+              "default": "cms",
+              "title": "Mode"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/dataops/versions": {
+      "get": {
+        "tags": [
+          "Public registry DataOps"
+        ],
+        "summary": "Versions",
+        "description": "Published snapshots only: staging or failed transactions never appear here.",
+        "operationId": "versions_api_dataops_versions_get",
+        "parameters": [
+          {
+            "name": "mode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "cms",
+                "fixture"
+              ],
+              "type": "string",
+              "default": "cms",
+              "title": "Mode"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Page Size"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SnapshotPage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/dataops/runs": {
+      "get": {
+        "tags": [
+          "Public registry DataOps"
+        ],
+        "summary": "Runs",
+        "operationId": "runs_api_dataops_runs_get",
+        "parameters": [
+          {
+            "name": "mode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "cms",
+                "fixture"
+              ],
+              "type": "string",
+              "default": "cms",
+              "title": "Mode"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Page Size"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunPage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/dataops/runs/{run_id}/findings": {
+      "get": {
+        "tags": [
+          "Public registry DataOps"
+        ],
+        "summary": "Findings",
+        "operationId": "findings_api_dataops_runs__run_id__findings_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Page Size"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FindingPage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/dataops/versions/{snapshot_id}/records": {
+      "get": {
+        "tags": [
+          "Public registry DataOps"
+        ],
+        "summary": "Records",
+        "operationId": "records_api_dataops_versions__snapshot_id__records_get",
+        "parameters": [
+          {
+            "name": "snapshot_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Snapshot Id"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Page Size"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordPage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/dataops/compare": {
+      "get": {
+        "tags": [
+          "Public registry DataOps"
+        ],
+        "summary": "Compare",
+        "description": "Recompute any compatible successful pair without database writes.",
+        "operationId": "compare_api_dataops_compare_get",
+        "parameters": [
+          {
+            "name": "old_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36,
+              "title": "Old Id"
+            }
+          },
+          {
+            "name": "new_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36,
+              "title": "New Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComparisonView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Analytics": {
+        "properties": {
+          "providers": {
+            "type": "integer",
+            "title": "Providers"
+          },
+          "encounters": {
+            "type": "integer",
+            "title": "Encounters"
+          },
+          "scored": {
+            "type": "integer",
+            "title": "Scored"
+          },
+          "mean_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mean Score"
+          },
+          "specialties": {
+            "items": {
+              "$ref": "#/components/schemas/Bucket"
+            },
+            "type": "array",
+            "title": "Specialties"
+          },
+          "distribution": {
+            "items": {
+              "$ref": "#/components/schemas/Bucket"
+            },
+            "type": "array",
+            "title": "Distribution"
+          },
+          "locations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Locations"
+          },
+          "latest_run": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/app__schemas__RunView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "last_success": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/app__schemas__RunView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "providers",
+          "encounters",
+          "scored",
+          "mean_score",
+          "specialties",
+          "distribution",
+          "locations",
+          "latest_run",
+          "last_success"
+        ],
+        "title": "Analytics"
+      },
+      "Bucket": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "count"
+        ],
+        "title": "Bucket"
+      },
+      "ChangeExample": {
+        "properties": {
+          "record_key": {
+            "type": "string",
+            "title": "Record Key"
+          },
+          "fields": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Fields"
+          },
+          "before": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Before"
+          },
+          "after": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "After"
+          }
+        },
+        "type": "object",
+        "required": [
+          "record_key",
+          "fields",
+          "before",
+          "after"
+        ],
+        "title": "ChangeExample"
+      },
+      "CohortPoint": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "avg_cost": {
+            "type": "number",
+            "title": "Avg Cost"
+          },
+          "quality": {
+            "type": "number",
+            "title": "Quality"
+          },
+          "highlighted": {
+            "type": "boolean",
+            "title": "Highlighted"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "avg_cost",
+          "quality",
+          "highlighted"
+        ],
+        "title": "CohortPoint"
+      },
+      "ComparisonView": {
+        "properties": {
+          "old_id": {
+            "type": "string",
+            "title": "Old Id"
+          },
+          "new_id": {
+            "type": "string",
+            "title": "New Id"
+          },
+          "added": {
+            "type": "integer",
+            "title": "Added"
+          },
+          "removed": {
+            "type": "integer",
+            "title": "Removed"
+          },
+          "changed": {
+            "type": "integer",
+            "title": "Changed"
+          },
+          "unchanged": {
+            "type": "integer",
+            "title": "Unchanged"
+          },
+          "specialty_changes": {
+            "type": "integer",
+            "title": "Specialty Changes"
+          },
+          "location_changes": {
+            "type": "integer",
+            "title": "Location Changes"
+          },
+          "field_changes": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Field Changes"
+          },
+          "examples": {
+            "items": {
+              "$ref": "#/components/schemas/ChangeExample"
+            },
+            "type": "array",
+            "title": "Examples"
+          },
+          "examples_truncated": {
+            "type": "boolean",
+            "title": "Examples Truncated"
+          },
+          "added_examples": {
+            "items": {
+              "$ref": "#/components/schemas/MembershipExample"
+            },
+            "type": "array",
+            "title": "Added Examples"
+          },
+          "removed_examples": {
+            "items": {
+              "$ref": "#/components/schemas/MembershipExample"
+            },
+            "type": "array",
+            "title": "Removed Examples"
+          },
+          "validation_delta": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Validation Delta"
+          },
+          "valid_delta": {
+            "type": "integer",
+            "title": "Valid Delta"
+          },
+          "rejected_delta": {
+            "type": "integer",
+            "title": "Rejected Delta"
+          },
+          "caveat": {
+            "type": "string",
+            "title": "Caveat"
+          }
+        },
+        "type": "object",
+        "required": [
+          "old_id",
+          "new_id",
+          "added",
+          "removed",
+          "changed",
+          "unchanged",
+          "specialty_changes",
+          "location_changes",
+          "field_changes",
+          "examples",
+          "examples_truncated",
+          "added_examples",
+          "removed_examples",
+          "validation_delta",
+          "valid_delta",
+          "rejected_delta",
+          "caveat"
+        ],
+        "title": "ComparisonView"
+      },
+      "Components": {
+        "properties": {
+          "quality": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quality"
+          },
+          "outcome": {
+            "type": "number",
+            "title": "Outcome"
+          },
+          "cost": {
+            "type": "number",
+            "title": "Cost"
+          },
+          "reliability": {
+            "type": "number",
+            "title": "Reliability"
+          },
+          "volume": {
+            "type": "number",
+            "title": "Volume"
+          },
+          "completeness": {
+            "type": "number",
+            "title": "Completeness"
+          },
+          "shrinkage": {
+            "type": "number",
+            "title": "Shrinkage"
+          },
+          "residual": {
+            "type": "number",
+            "title": "Residual"
+          },
+          "cost_ratio": {
+            "type": "number",
+            "title": "Cost Ratio"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "quality",
+          "outcome",
+          "cost",
+          "reliability",
+          "volume",
+          "completeness",
+          "shrinkage",
+          "residual",
+          "cost_ratio",
+          "status",
+          "version"
+        ],
+        "title": "Components"
+      },
+      "Evidence": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "specialties": {
+            "items": {
+              "$ref": "#/components/schemas/SpecialtyEvidence"
+            },
+            "type": "array",
+            "title": "Specialties"
+          },
+          "completeness": {
+            "items": {
+              "$ref": "#/components/schemas/Bucket"
+            },
+            "type": "array",
+            "title": "Completeness"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "specialties",
+          "completeness"
+        ],
+        "title": "Evidence"
+      },
+      "FindingPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/FindingView"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "page_size": {
+            "type": "integer",
+            "title": "Page Size"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "title": "FindingPage"
+      },
+      "FindingView": {
+        "properties": {
+          "row_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Row Number"
+          },
+          "severity": {
+            "type": "string",
+            "title": "Severity"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "field": {
+            "type": "string",
+            "title": "Field"
+          }
+        },
+        "type": "object",
+        "required": [
+          "row_number",
+          "severity",
+          "code",
+          "field"
+        ],
+        "title": "FindingView"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "MembershipExample": {
+        "properties": {
+          "record_key": {
+            "type": "string",
+            "title": "Record Key"
+          },
+          "data": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "record_key",
+          "data"
+        ],
+        "title": "MembershipExample"
+      },
+      "ProviderPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ProviderView"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "page_size": {
+            "type": "integer",
+            "title": "Page Size"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "title": "ProviderPage"
+      },
+      "ProviderView": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "specialty": {
+            "type": "string",
+            "title": "Specialty"
+          },
+          "location": {
+            "type": "string",
+            "title": "Location"
+          },
+          "encounters": {
+            "type": "integer",
+            "title": "Encounters"
+          },
+          "observed": {
+            "type": "integer",
+            "title": "Observed"
+          },
+          "avg_cost": {
+            "type": "number",
+            "title": "Avg Cost"
+          },
+          "quality": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quality"
+          },
+          "rank": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rank"
+          },
+          "components": {
+            "$ref": "#/components/schemas/Components"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "specialty",
+          "location",
+          "encounters",
+          "observed",
+          "avg_cost",
+          "quality",
+          "rank",
+          "components"
+        ],
+        "title": "ProviderView"
+      },
+      "QualityCost": {
+        "properties": {
+          "specialty": {
+            "type": "string",
+            "title": "Specialty"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "mean_cost": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mean Cost"
+          },
+          "mean_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mean Score"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CohortPoint"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "specialty",
+          "count",
+          "mean_cost",
+          "mean_score",
+          "items"
+        ],
+        "title": "QualityCost"
+      },
+      "RecordPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RecordView"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "page_size": {
+            "type": "integer",
+            "title": "Page Size"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "title": "RecordPage"
+      },
+      "RecordView": {
+        "properties": {
+          "row_number": {
+            "type": "integer",
+            "title": "Row Number"
+          },
+          "record_key": {
+            "type": "string",
+            "title": "Record Key"
+          },
+          "accepted": {
+            "type": "boolean",
+            "title": "Accepted"
+          },
+          "data": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "row_number",
+          "record_key",
+          "accepted",
+          "data"
+        ],
+        "title": "RecordView"
+      },
+      "RunPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/app__ingestion__schemas__RunView"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "page_size": {
+            "type": "integer",
+            "title": "Page Size"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "title": "RunPage"
+      },
+      "SnapshotPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SnapshotView"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "page_size": {
+            "type": "integer",
+            "title": "Page Size"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "title": "SnapshotPage"
+      },
+      "SnapshotView": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "source_id": {
+            "type": "string",
+            "title": "Source Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "checksum": {
+            "type": "string",
+            "title": "Checksum"
+          },
+          "scope_hash": {
+            "type": "string",
+            "title": "Scope Hash"
+          },
+          "scope": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Scope"
+          },
+          "provenance": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Provenance"
+          },
+          "policy": {
+            "type": "string",
+            "title": "Policy"
+          },
+          "received": {
+            "type": "integer",
+            "title": "Received"
+          },
+          "valid": {
+            "type": "integer",
+            "title": "Valid"
+          },
+          "rejected": {
+            "type": "integer",
+            "title": "Rejected"
+          },
+          "warnings": {
+            "type": "integer",
+            "title": "Warnings"
+          },
+          "finding_counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Finding Counts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "source_id",
+          "created_at",
+          "checksum",
+          "scope_hash",
+          "scope",
+          "provenance",
+          "policy",
+          "received",
+          "valid",
+          "rejected",
+          "warnings",
+          "finding_counts"
+        ],
+        "title": "SnapshotView"
+      },
+      "SourceView": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "dataset_id": {
+            "type": "string",
+            "title": "Dataset Id"
+          },
+          "mode": {
+            "type": "string",
+            "title": "Mode"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "dataset_id",
+          "mode",
+          "title",
+          "url"
+        ],
+        "title": "SourceView"
+      },
+      "SpecialtyEvidence": {
+        "properties": {
+          "specialty": {
+            "type": "string",
+            "title": "Specialty"
+          },
+          "eligible": {
+            "type": "integer",
+            "title": "Eligible"
+          },
+          "insufficient_outcomes": {
+            "type": "integer",
+            "title": "Insufficient Outcomes"
+          },
+          "low_completeness": {
+            "type": "integer",
+            "title": "Low Completeness"
+          },
+          "not_processed": {
+            "type": "integer",
+            "title": "Not Processed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "specialty",
+          "eligible",
+          "insufficient_outcomes",
+          "low_completeness",
+          "not_processed"
+        ],
+        "title": "SpecialtyEvidence"
+      },
+      "StatusView": {
+        "properties": {
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/SourceView"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "latest_attempt": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/app__ingestion__schemas__RunView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "latest_success": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/app__ingestion__schemas__RunView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "snapshot_count": {
+            "type": "integer",
+            "title": "Snapshot Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sources",
+          "latest_attempt",
+          "latest_success",
+          "snapshot_count"
+        ],
+        "title": "StatusView"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "app__ingestion__schemas__RunView": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "source_id": {
+            "type": "string",
+            "title": "Source Id"
+          },
+          "snapshot_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshot Id"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Started At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seconds"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "requested": {
+            "type": "integer",
+            "title": "Requested"
+          },
+          "received": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Received"
+          },
+          "valid": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid"
+          },
+          "rejected": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rejected"
+          },
+          "warnings": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warnings"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "provenance": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Provenance"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "source_id",
+          "snapshot_id",
+          "started_at",
+          "finished_at",
+          "seconds",
+          "status",
+          "requested",
+          "received",
+          "valid",
+          "rejected",
+          "warnings",
+          "error_code",
+          "provenance"
+        ],
+        "title": "RunView"
+      },
+      "app__schemas__RunView": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Started At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "seed": {
+            "type": "integer",
+            "title": "Seed"
+          },
+          "providers": {
+            "type": "integer",
+            "title": "Providers"
+          },
+          "encounters": {
+            "type": "integer",
+            "title": "Encounters"
+          },
+          "seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seconds"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "started_at",
+          "finished_at",
+          "status",
+          "seed",
+          "providers",
+          "encounters",
+          "seconds",
+          "error"
+        ],
+        "title": "RunView"
+      }
+    }
+  }
+}

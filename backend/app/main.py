@@ -6,12 +6,13 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from .db import get_session
+from .ingestion.api import router as dataops_router
 from . import repository, analytics as cohort_analytics
 from .schemas import Analytics, ProviderPage, ProviderView, RunView, QualityCost, Evidence
 
 app = FastAPI(
     title="CareRank Lab",
-    version="2.0.0",
+    version="3.0.0",
     description="Synthetic educational intelligence. Not clinical advice.",
 )
 DB = Annotated[Session, Depends(get_session)]
@@ -95,3 +96,6 @@ def evidence(db: DB):
     have undefined completeness. Missing score rows are reported as not processed.
     """
     return cohort_analytics.evidence(db)
+
+
+app.include_router(dataops_router)

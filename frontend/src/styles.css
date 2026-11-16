@@ -881,3 +881,38 @@ caption {
   flex-wrap: wrap;
   gap: 8px;
 }
+.dataops-status {
+  font-size: 22px !important;
+  overflow-wrap: anywhere;
+}
+.dataops-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.dataops-code {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: #edf5f2;
+  padding: 16px;
+  border-radius: 8px;
+}
+.checksum {
+  display: block;
+  overflow-wrap: anywhere;
+  max-width: 240px;
+}
+.dataops-provenance dd {
+  margin: 0 0 12px;
+  overflow-wrap: anywhere;
+}
+.dataops-provenance dt {
+  font-weight: 600;
+}
+
+/* Keep navigation buttons inside narrow mobile screens. */
+@media (max-width: 600px) {
+  aside > nav {
+    flex-wrap: wrap;
+  }
+}

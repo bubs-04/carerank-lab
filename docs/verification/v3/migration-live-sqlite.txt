@@ -1,0 +1,10 @@
+Final isolated SQLite database: alembic upgrade head emitted no output.
+Verified revision: 002
+Verified registry tables:
+registry_changes
+registry_findings
+registry_records
+registry_runs
+registry_snapshots
+registry_sources
+PostgreSQL migration execution remains unverified.

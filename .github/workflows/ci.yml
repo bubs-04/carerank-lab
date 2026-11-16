@@ -28,11 +28,15 @@ jobs:
         run: |
           docker compose exec -T db createdb -U carerank carerank_test
           docker compose run --rm -e TEST_DATABASE_URL="postgresql+psycopg://carerank:$(sed -n 's/^POSTGRES_PASSWORD=//p' .env)@db:5432/carerank_test" api pytest -q
+      - name: Ingest deterministic registry fixtures (no CMS network)
+        run: |
+          docker compose run --rm --no-deps api python -m app.ingestion --fixture tests/fixtures/cms_registry_a.csv --max-rows 5
+          docker compose run --rm --no-deps api python -m app.ingestion --fixture tests/fixtures/cms_registry_b.csv --max-rows 5
       - run: npx playwright install --with-deps chromium
         working-directory: frontend
       - run: npm run e2e
         working-directory: frontend
-        env: {BASE_URL: 'http://127.0.0.1:8080'}
+        env: {BASE_URL: 'http://127.0.0.1:8080', DATAOPS_E2E: '1'}
       - name: Preserve browser evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -45,6 +49,8 @@ jobs:
             docs/comparison.png
             docs/analytics.png
             docs/mobile-analytics.png
+            docs/dataops.png
+            docs/mobile-dataops.png
             docs/mobile.png
             frontend/test-results/
           if-no-files-found: warn

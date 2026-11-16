@@ -1,0 +1,34 @@
+
+> carerank-lab@1.0.0 build
+> tsc --noEmit && vite build
+
+vite v8.3.8 building client environment for production...
+transforming...
+✓ 2088 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.37 kB │ gzip:  0.27 kB
+dist/assets/index-Czz06Xw0.css   11.22 kB │ gzip:  3.31 kB
+dist/assets/index-Be2B2sVS.js   265.98 kB │ gzip: 81.72 kB
+
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "../../../review/carerank-lab/frontend/node_modules/lucide-react/dist/esm/context.mjs" may not be preserved when bundling.
+   ╭─[ ../../../review/carerank-lab/frontend/node_modules/lucide-react/dist/esm/context.mjs:2:1 ]
+   │
+ 2 │ "use client";
+   │ ──────┬──────
+   │       ╰──────── module level directive may not be preserved
+   │
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "../../../review/carerank-lab/frontend/node_modules/lucide-react/dist/esm/Icon.mjs" may not be preserved when bundling.
+   ╭─[ ../../../review/carerank-lab/frontend/node_modules/lucide-react/dist/esm/Icon.mjs:2:1 ]
+   │
+ 2 │ "use client";
+   │ ──────┬──────
+   │       ╰──────── module level directive may not be preserved
+   │
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+✓ built in 259ms

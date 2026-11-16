@@ -1,3 +1,4 @@
+import DataOps from "./DataOps";
 import AnalyticsPage, { ComparisonChart } from "./Analytics";
 import { useState } from "react";
 import {
@@ -514,7 +515,7 @@ function Explorer({ open }: { open: (ids: number[]) => void }) {
 }
 export default function App() {
   const [page, setPage] = useState<
-    "overview" | "analytics" | "providers" | "details"
+    "overview" | "analytics" | "providers" | "details" | "dataops"
   >("overview");
   const [ids, setIds] = useState<number[]>([]);
   return (
@@ -555,6 +556,12 @@ export default function App() {
           >
             <Activity size={19} /> Analytics
           </button>
+          <button
+            aria-current={page === "dataops" ? "page" : undefined}
+            onClick={() => setPage("dataops")}
+          >
+            <Database size={19} /> Data operations
+          </button>
         </nav>
         <div className="sidebar-note">
           <FlaskConical />
@@ -580,17 +587,32 @@ export default function App() {
                   ? "Providers"
                   : page === "analytics"
                     ? "Analytics"
-                    : "Provider evidence"}
+                    : page === "dataops"
+                      ? "Data operations"
+                      : "Provider evidence"}
             </b>
           </div>
-          <span className="pill">● Synthetic environment</span>
+          <span className="pill">
+            {page === "dataops"
+              ? "● Public registry / fixture workspace"
+              : "● Synthetic environment"}
+          </span>
         </header>
         <div className="disclaimer">
           <ShieldCheck size={16} />
           <span>
-            <strong>Demonstration only.</strong> All data and scores are
-            synthetic. Not suitable for healthcare decisions. Not affiliated
-            with Garner.
+            {page === "dataops" ? (
+              <>
+                Public registry and labeled test fixtures. No patient data or
+                clinical ratings. Not affiliated with Garner.
+              </>
+            ) : (
+              <>
+                <strong>Demonstration only.</strong> All data and scores are
+                synthetic. Not suitable for healthcare decisions. Not affiliated
+                with Garner.
+              </>
+            )}
           </span>
         </div>
         <main>
@@ -599,6 +621,8 @@ export default function App() {
               open={() => setPage("providers")}
               analyze={() => setPage("analytics")}
             />
+          ) : page === "dataops" ? (
+            <DataOps />
           ) : page === "analytics" ? (
             <AnalyticsPage
               open={(next) => {
@@ -620,7 +644,9 @@ export default function App() {
         <footer>
           CareRank Lab{" "}
           <span>
-            Transparent methods. Fictional data. Real engineering practice.
+            {page === "dataops"
+              ? "Public provenance. Separate test fixtures. No clinical scores."
+              : "Transparent methods. Fictional data. Real engineering practice."}
           </span>
         </footer>
       </div>
