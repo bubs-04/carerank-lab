@@ -1,0 +1,3 @@
+{"event":"ingestion_started","mode":"cms","run_id":"222421e3-5b89-458a-a759-9133fb57b61c"}
+{"event":"ingestion_finished","run_id":"222421e3-5b89-458a-a759-9133fb57b61c","status":"succeeded"}
+{"error_code":null,"received":1000,"rejected":0,"run_id":"222421e3-5b89-458a-a759-9133fb57b61c","snapshot_id":"ad92986b-e165-4be4-a088-03ea36da6e7e","status":"succeeded","valid":1000}

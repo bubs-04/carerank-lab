@@ -180,3 +180,45 @@ def test_postgres_cohort_and_evidence(client, engine):
     assert evidence["total"] == 100
     assert sum(b["count"] for b in evidence["completeness"]) == 100
     assert sum(sum(v for k, v in r.items() if k != "specialty") for r in evidence["specialties"]) == 100
+
+
+def test_registry_postgres_atomic_rerun(engine):
+    from pathlib import Path
+    from app.ingestion.connector import fixture_batch
+    from app.ingestion.service import ingest
+    from app.ingestion.models import Snapshot, IngestionRun
+
+    fixture = Path(__file__).parent / "fixtures/cms_registry_a.csv"
+
+    def fetch():
+        return fixture_batch(fixture, 5)
+
+    with Session(engine) as db:
+        before = db.scalar(select(func.count()).select_from(Provider))
+    first = ingest(engine, fetch, "fixture", 5)
+    second = ingest(engine, fetch, "fixture", 5)
+    with Session(engine) as db:
+        assert db.get(IngestionRun, first).snapshot_id == db.get(IngestionRun, second).snapshot_id
+        assert db.get(IngestionRun, second).status == "no_change"
+        assert db.scalar(select(func.count()).select_from(Snapshot)) == 1
+        assert db.scalar(select(func.count()).select_from(Provider)) == before
+
+
+def test_registry_postgres_concurrent_publication(engine):
+    from concurrent.futures import ThreadPoolExecutor
+    from pathlib import Path
+    from app.ingestion.connector import fixture_batch
+    from app.ingestion.service import ingest
+    from app.ingestion.models import IngestionRun
+
+    fixture = Path(__file__).parent / "fixtures/cms_registry_b.csv"
+
+    def execute(_):
+        return ingest(engine, lambda: fixture_batch(fixture, 5), "fixture", 5)
+
+    with ThreadPoolExecutor(max_workers=2) as workers:
+        ids = list(workers.map(execute, range(2)))
+    with Session(engine) as db:
+        rows = [db.get(IngestionRun, i) for i in ids]
+        assert rows[0].snapshot_id == rows[1].snapshot_id
+        assert sorted(r.status for r in rows) == ["no_change", "succeeded"]

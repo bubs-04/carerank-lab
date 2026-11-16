@@ -1,0 +1,12 @@
+
+> carerank-lab@1.0.0 test
+> vitest run
+
+
+ RUN  v5.1.0 <workspace>/review-v3/carerank-lab/frontend
+
+
+ Test Files  4 passed | 1 skipped (5)
+      Tests  20 passed | 1 skipped (21)
+   Start at  15:39:35
+   Duration  1.50s (environment 49%, tests 18%, import 16%, setup 11%, transform 6%)
