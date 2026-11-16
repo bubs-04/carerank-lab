@@ -1,4 +1,5 @@
 import { useState } from "react";
+import Monitoring from "./Monitoring";
 import { useApi } from "./api";
 
 type Run = {
@@ -312,13 +313,33 @@ function Compare({ oldId, newId }: { oldId: string; newId: string }) {
     </>
   );
 }
-function Workspace({ mode }: { mode: "cms" | "fixture" }) {
+function Attempt({ runId }: { runId: string }) {
+  const result = useApi<Run>(
+    `/api/dataops/monitoring/runs/${encodeURIComponent(runId)}`,
+  );
+  return result.data ? (
+    <p>
+      {result.data.status} · requested {result.data.requested} · received{" "}
+      {result.data.received ?? "unknown"} · error{" "}
+      {result.data.error_code || "none recorded"}
+    </p>
+  ) : (
+    <Load error={result.error} />
+  );
+}
+function Workspace({
+  mode,
+  inspect,
+}: {
+  mode: "cms" | "fixture";
+  inspect: { runId: string; snapshotId?: string | null };
+}) {
   const [versionPage, setVersionPage] = useState(1),
     [runPage, setRunPage] = useState(1);
   const [older, setOlder] = useState<string>(""),
     [newer, setNewer] = useState<string>("");
-  const [findingRun, setFindingRun] = useState(""),
-    [recordVersion, setRecordVersion] = useState("");
+  const [findingRun, setFindingRun] = useState(inspect.runId),
+    [recordVersion, setRecordVersion] = useState(inspect.snapshotId || "");
   const status = useApi<Status>(`/api/dataops/status?mode=${mode}`);
   const versions = useApi<Page<Version>>(
     `/api/dataops/versions?mode=${mode}&page=${versionPage}&page_size=10`,
@@ -330,6 +351,22 @@ function Workspace({ mode }: { mode: "cms" | "fixture" }) {
     success = status.data?.latest_success;
   return (
     <>
+      {inspect.runId && (
+        <section className="panel">
+          <h2>Selected investigation evidence</h2>
+          <p>
+            Attempt {inspect.runId}. Its validation findings and any selected
+            snapshot records appear below.
+          </p>
+          <a href="#selected-findings">Jump to selected findings</a>
+          {inspect.snapshotId && (
+            <p>
+              <a href="#selected-records">Jump to selected snapshot records</a>
+            </p>
+          )}
+          <Attempt runId={inspect.runId} />
+        </section>
+      )}
       <section className="panel">
         <h2>Source and job health</h2>
         <p>
@@ -621,9 +658,15 @@ function Workspace({ mode }: { mode: "cms" | "fixture" }) {
           </>
         )}
       </section>
-      {findingRun && <Findings key={findingRun} runId={findingRun} />}
+      {findingRun && (
+        <div id="selected-findings">
+          <Findings key={findingRun} runId={findingRun} />
+        </div>
+      )}
       {recordVersion && (
-        <Records key={recordVersion} versionId={recordVersion} />
+        <div id="selected-records">
+          <Records key={recordVersion} versionId={recordVersion} />
+        </div>
       )}
     </>
   );
@@ -631,6 +674,11 @@ function Workspace({ mode }: { mode: "cms" | "fixture" }) {
 export default function DataOps() {
   const [mode, setMode] = useState<"cms" | "fixture">("cms");
   const [refreshKey, setRefreshKey] = useState(0);
+  const [tab, setTab] = useState("ingestion");
+  const [inspect, setInspect] = useState<{
+    runId: string;
+    snapshotId?: string | null;
+  }>({ runId: "" });
   return (
     <>
       <div className="heading">
@@ -648,7 +696,10 @@ export default function DataOps() {
           Data source mode
           <select
             value={mode}
-            onChange={(e) => setMode(e.target.value as "cms" | "fixture")}
+            onChange={(e) => {
+              setMode(e.target.value as "cms" | "fixture");
+              setInspect({ runId: "" });
+            }}
           >
             <option value="cms">Live CMS registry</option>
             <option value="fixture">Deterministic fixture (test data)</option>
@@ -663,7 +714,40 @@ export default function DataOps() {
           Registry identities are never joined to the synthetic ranking system.
         </p>
       </section>
-      <Workspace key={`${mode}-${refreshKey}`} mode={mode} />
+      <div
+        className="dataops-actions monitor-tabs"
+        role="group"
+        aria-label="Data operations areas"
+      >
+        <button
+          aria-pressed={tab === "ingestion"}
+          onClick={() => setTab("ingestion")}
+        >
+          Ingestion and versions
+        </button>
+        <button
+          aria-pressed={tab === "monitoring"}
+          onClick={() => setTab("monitoring")}
+        >
+          Quality monitoring
+        </button>
+      </div>
+      {tab === "ingestion" ? (
+        <Workspace
+          key={`${mode}-${refreshKey}-${inspect.runId}-${inspect.snapshotId}`}
+          mode={mode}
+          inspect={inspect}
+        />
+      ) : (
+        <Monitoring
+          key={`${mode}-${refreshKey}`}
+          mode={mode}
+          onInspect={(runId, snapshotId) => {
+            setInspect({ runId, snapshotId });
+            setTab("ingestion");
+          }}
+        />
+      )}
     </>
   );
 }

@@ -1,0 +1,13 @@
+......................................s.........sssssssssssssssssss.......................................{"counts":{"not_evaluable":5,"passed":7},"profile":"1835f8b9442a53b41e6b12904658d6dd3424f5b6a28eef6b3be871dedf8f9fb4","reused":false,"run_id":"85b3b6bc-0f37-423e-bfde-18c5576d8858"}
+{"evaluated_attempts":1,"more_may_remain":true}
+{"counts":{"failed":2,"passed":10},"profile":"1835f8b9442a53b41e6b12904658d6dd3424f5b6a28eef6b3be871dedf8f9fb4","reused":false,"run_id":"ef4f2a93-7ee3-4d3b-8174-b2797facaf35"}
+{"evaluated_attempts":1,"more_may_remain":true}
+{"evaluated_attempts":0,"more_may_remain":false}
+.....................
+=============================== warnings summary ===============================
+../../../work/venv/lib/python3.11/site-packages/fastapi/testclient.py:1
+  /Users/prabhat/Documents/Codex/2026-11-14/new-chat-2/work/venv/lib/python3.11/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+107 passed, 20 skipped, 1 warning in 3.97s

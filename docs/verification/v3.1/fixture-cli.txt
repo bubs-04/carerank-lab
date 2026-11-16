@@ -1,0 +1,19 @@
+{"event":"ingestion_started","mode":"fixture","run_id":"4eb1230f-46e0-4bab-b054-3c03df7443f1"}
+{"event":"ingestion_finished","run_id":"4eb1230f-46e0-4bab-b054-3c03df7443f1","status":"succeeded"}
+{"counts":{"failed":4,"not_evaluable":5,"passed":3},"event":"monitoring_evaluated","profile":"1835f8b9442a53b41e6b12904658d6dd3424f5b6a28eef6b3be871dedf8f9fb4","reused":false,"run_id":"4eb1230f-46e0-4bab-b054-3c03df7443f1"}
+{"error_code":null,"received":5,"rejected":1,"run_id":"4eb1230f-46e0-4bab-b054-3c03df7443f1","snapshot_id":"5410143e-debe-40a7-89fb-810fe8869b2f","status":"succeeded","valid":4}
+{"event":"ingestion_started","mode":"fixture","run_id":"97f944d2-5bd2-4f9c-9227-9c1dfe31bc02"}
+{"event":"ingestion_finished","run_id":"97f944d2-5bd2-4f9c-9227-9c1dfe31bc02","status":"succeeded"}
+{"counts":{"failed":4,"passed":8},"event":"monitoring_evaluated","profile":"1835f8b9442a53b41e6b12904658d6dd3424f5b6a28eef6b3be871dedf8f9fb4","reused":false,"run_id":"97f944d2-5bd2-4f9c-9227-9c1dfe31bc02"}
+{"error_code":null,"received":5,"rejected":1,"run_id":"97f944d2-5bd2-4f9c-9227-9c1dfe31bc02","snapshot_id":"3ac8ba81-73ca-4544-a41c-37575bc408d8","status":"succeeded","valid":4}
+{"event":"ingestion_started","mode":"fixture","run_id":"0825e111-b118-4773-981a-8d516bb7e403"}
+{"event":"ingestion_finished","run_id":"0825e111-b118-4773-981a-8d516bb7e403","status":"no_change"}
+{"counts":{"failed":4,"passed":8},"event":"monitoring_evaluated","profile":"1835f8b9442a53b41e6b12904658d6dd3424f5b6a28eef6b3be871dedf8f9fb4","reused":false,"run_id":"0825e111-b118-4773-981a-8d516bb7e403"}
+{"error_code":null,"received":5,"rejected":1,"run_id":"0825e111-b118-4773-981a-8d516bb7e403","snapshot_id":"3ac8ba81-73ca-4544-a41c-37575bc408d8","status":"no_change","valid":4}
+{"evaluated_attempts":0,"more_may_remain":false}
+{"alert_id":"2ba418de-9d36-4256-8d20-3205c05ed93a","revision":2,"status":"investigating"}
+{"alert":{"assigned_to":null,"created_at":"2026-11-16T06:37:02.738079","evaluation_id":"6bad829d-a668-429f-a53b-f16f2bc28c80","id":"2ba418de-9d36-4256-8d20-3205c05ed93a","resolution":null,"revision":2,"rule_version_id":"435fae9f48992a0b66978f0c9cb722da6164a52d66bcdb8b2e3ef3e2f937b66d","run_id":"4eb1230f-46e0-4bab-b054-3c03df7443f1","severity":"warning","status":"investigating","updated_at":"2026-11-16T06:37:04.491043"},"events":[{"action":"created","actor":"system","alert_id":"2ba418de-9d36-4256-8d20-3205c05ed93a","assigned_to":null,"created_at":"2026-11-16T06:37:02.738865","from_status":null,"id":"e663753f-2505-4e78-b426-c436a8d95051","note":"Rejected rows as a percentage of received rows: 20 %; alert when > 5.","revision":1,"to_status":"open"},{"action":"transition","actor":"verification-operator","alert_id":"2ba418de-9d36-4256-8d20-3205c05ed93a","assigned_to":null,"created_at":"2026-11-16T06:37:04.491068","from_status":"open","id":"696f866f-5d3b-4a61-b9bd-c07995a41882","note":"Reviewed deterministic fixture evidence; intentional missing-field test.","revision":2,"to_status":"investigating"}]}
+RUNS 3
+SNAPSHOTS 2
+EVALUATIONS 36
+ALERTS 12

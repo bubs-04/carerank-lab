@@ -28,6 +28,8 @@ def registry_lock(db):
 
 def ingest(engine, fetch, mode: str, requested: int, before_commit=None) -> str:
     """Create audit, fetch/validate off-transaction, atomically commit all rows or none."""
+    from ..monitoring.service import evaluate_safely
+
     if mode not in {"cms", "fixture"} or not 1 <= requested <= 5000:
         raise ValueError("invalid_ingestion_configuration")
     run_id, source_id, started = str(uuid.uuid4()), f"{mode}-{DATASET}", time.monotonic()
@@ -180,8 +182,10 @@ def ingest(engine, fetch, mode: str, requested: int, before_commit=None) -> str:
                 }
             )
         )
+        evaluate_safely(engine, run_id)
         if status == "interrupted":
             raise
         return run_id
     log.info(canonical({"event": "ingestion_finished", "run_id": run_id, "status": final_status}))
+    evaluate_safely(engine, run_id)
     return run_id

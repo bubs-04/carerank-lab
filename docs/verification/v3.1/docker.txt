@@ -1,0 +1,4 @@
+Command: /Users/prabhat/.docker/bin/docker info --format {{.ServerVersion}}
+Exit status: 1
+permission denied while trying to connect to the docker API at unix:///Users/prabhat/.docker/run/docker.sock
+No Compose stack or PostgreSQL tests were run through this socket. No retry attempted.

@@ -7,12 +7,13 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from .db import get_session
 from .ingestion.api import router as dataops_router
+from .monitoring.api import router as monitoring_router
 from . import repository, analytics as cohort_analytics
 from .schemas import Analytics, ProviderPage, ProviderView, RunView, QualityCost, Evidence
 
 app = FastAPI(
     title="CareRank Lab",
-    version="3.0.0",
+    version="3.1.0",
     description="Synthetic educational intelligence. Not clinical advice.",
 )
 DB = Annotated[Session, Depends(get_session)]
@@ -99,3 +100,5 @@ def evidence(db: DB):
 
 
 app.include_router(dataops_router)
+
+app.include_router(monitoring_router)

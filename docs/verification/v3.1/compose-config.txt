@@ -1,0 +1,3 @@
+Command: docker compose --env-file .env.example config --quiet
+Exit status: 0
+Compose configuration parsed successfully using example settings. This does not verify engine access or container startup.

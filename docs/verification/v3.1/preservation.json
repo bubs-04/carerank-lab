@@ -1,0 +1,25 @@
+{
+  "upstream_commit": "351d7143b49b3f2e151d6877d0074ef050d53a60",
+  "source_archive_sha256": "def57117191eefca763ee2b0d9f3c83dd50cf69e37c1b1f8e01e13a60568e3e2",
+  "unchanged_files": {
+    "backend/app/models.py": true,
+    "backend/app/scoring.py": true,
+    "backend/app/generator.py": true,
+    "backend/app/pipeline.py": true,
+    "backend/app/aggregate.sql": true,
+    "backend/app/analytics.py": true,
+    "backend/app/ingestion/connector.py": true,
+    "backend/app/ingestion/validation.py": true,
+    "backend/app/ingestion/compare.py": true,
+    "backend/migrations/versions/001_initial.py": true,
+    "backend/migrations/versions/002_registry.py": true,
+    "frontend/src/App.tsx": true,
+    "frontend/src/api.ts": true,
+    "frontend/src/Analytics.tsx": true,
+    "frontend/package.json": true,
+    "frontend/package-lock.json": true,
+    "backend/requirements.txt": true
+  },
+  "env_file_present_in_delivery_tree": false,
+  "note": "No access to user database; exact production row counts require local verification."
+}

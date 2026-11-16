@@ -1,0 +1,48 @@
+[
+  {
+    "port": 15131,
+    "path": "/",
+    "status": 200,
+    "body": "Vite HTML"
+  },
+  {
+    "port": 15131,
+    "path": "/api/dataops/monitoring/summary?mode=fixture",
+    "status": 503,
+    "body": {
+      "detail": "Database unavailable. Check connection and migrations."
+    }
+  },
+  {
+    "port": 18131,
+    "path": "/api/dataops/monitoring/alerts?mode=fixture",
+    "status": 503,
+    "body": {
+      "detail": "Database unavailable. Check connection and migrations."
+    }
+  },
+  {
+    "port": 18131,
+    "path": "/api/dataops/monitoring/trends?mode=fixture",
+    "status": 503,
+    "body": {
+      "detail": "Database unavailable. Check connection and migrations."
+    }
+  },
+  {
+    "port": 18131,
+    "path": "/api/dataops/versions?mode=fixture",
+    "status": 503,
+    "body": {
+      "detail": "Database unavailable. Check connection and migrations."
+    }
+  },
+  {
+    "port": 18131,
+    "path": "/api/health",
+    "status": 503,
+    "body": {
+      "detail": "Database unavailable. Check connection and migrations."
+    }
+  }
+]

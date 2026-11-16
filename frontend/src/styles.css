@@ -916,3 +916,77 @@ caption {
     flex-wrap: wrap;
   }
 }
+
+/* Reliability monitoring: semantic bars, tabular alternatives and mobile wrapping. */
+.monitor-tabs {
+  margin: 1rem 0;
+}
+.monitor-tabs button[aria-pressed="true"] {
+  background: #174c48;
+  color: white;
+}
+.monitor-health {
+  border-left: 5px solid #9a741e;
+  background: #fbf5e5;
+  padding: 1rem;
+  border-radius: 8px;
+}
+.monitor-health strong {
+  text-transform: capitalize;
+  font-size: 1.25rem;
+}
+.monitor-passed {
+  border-color: #167a70;
+  background: #e8f4ef;
+}
+.monitor-attention {
+  border-color: #ae3c2d;
+  background: #fff0ed;
+}
+.monitor-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2rem;
+}
+.monitor-rule {
+  border-top: 1px solid #d9e4e2;
+  padding: 1rem 0;
+}
+.monitor-rule summary {
+  cursor: pointer;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.monitor-evidence {
+  padding: 0.5rem 0;
+  overflow-wrap: anywhere;
+}
+.monitor-timeline li {
+  padding: 0.5rem;
+  border-left: 2px solid #d9e4e2;
+  overflow-wrap: anywhere;
+}
+.monitor-trend {
+  width: 100%;
+  max-height: 250px;
+  color: #415653;
+}
+.monitor-trend text {
+  font-size: 12px;
+}
+.monitoring select {
+  display: block;
+  max-width: 100%;
+}
+.monitoring .panel {
+  overflow-wrap: anywhere;
+}
+.monitoring input[type="checkbox"] {
+  width: auto;
+}
+@media (max-width: 700px) {
+  .monitor-columns {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+}

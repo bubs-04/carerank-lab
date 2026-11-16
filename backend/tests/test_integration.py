@@ -222,3 +222,83 @@ def test_registry_postgres_concurrent_publication(engine):
         rows = [db.get(IngestionRun, i) for i in ids]
         assert rows[0].snapshot_id == rows[1].snapshot_id
         assert sorted(r.status for r in rows) == ["no_change", "succeeded"]
+
+
+def test_monitoring_postgres_concurrency_and_audit_guard(engine, monkeypatch):
+    """Real advisory locks, uniqueness and trigger enforcement; only on disposable TEST_DATABASE_URL."""
+    from concurrent.futures import ThreadPoolExecutor
+    from pathlib import Path
+    from sqlalchemy.exc import DBAPIError
+    from app.ingestion.connector import fixture_batch
+    from app.ingestion.service import ingest
+    from app.monitoring.service import evaluate_run, investigate
+    from app.monitoring.models import Evaluation, Alert, AuditEvent
+
+    monkeypatch.setenv("DQ_ENABLED", "false")
+    fixture = Path(__file__).parent / "fixtures/cms_registry_a.csv"
+    target = ingest(engine, lambda: fixture_batch(fixture, 5), "fixture", 5)
+    with ThreadPoolExecutor(max_workers=2) as workers:
+        results = list(workers.map(lambda _: evaluate_run(engine, target), range(2)))
+    assert sorted(r["reused"] for r in results) == [False, True]
+    with Session(engine) as db:
+        assert (
+            db.scalar(select(func.count()).select_from(Evaluation).where(Evaluation.run_id == target)) == 12
+        )
+        alert = db.scalar(select(Alert.id).where(Alert.run_id == target))
+
+    def action(_):
+        try:
+            return investigate(
+                engine, alert, actor="test", note="review", expected_revision=1, status="acknowledged"
+            )["status"]
+        except ValueError:
+            return "conflict"
+
+    with ThreadPoolExecutor(max_workers=2) as workers:
+        assert sorted(workers.map(action, range(2))) == ["acknowledged", "conflict"]
+    with Session(engine) as db:
+        assert (
+            db.scalar(select(func.count()).select_from(AuditEvent).where(AuditEvent.alert_id == alert)) == 2
+        )
+    for operation in ("UPDATE monitor_events SET note='forbidden'", "DELETE FROM monitor_events"):
+        with pytest.raises(DBAPIError), engine.begin() as db:
+            db.execute(text(operation))
+
+
+def test_monitoring_postgres_migration_preserves_existing_history(engine):
+    from app.ingestion.models import Snapshot, IngestionRun, SourceRecord, SnapshotChange
+    from sqlalchemy import inspect
+
+    models = (Provider, Encounter, Score, Snapshot, IngestionRun, SourceRecord, SnapshotChange)
+
+    def counts():
+        with Session(engine) as db:
+            return [db.scalar(select(func.count()).select_from(m)) for m in models]
+
+    before = counts()
+    command.downgrade(Config("alembic.ini"), "002")
+    assert "monitor_alerts" not in inspect(engine).get_table_names()
+    command.upgrade(Config("alembic.ini"), "003")
+    assert before == counts()
+
+
+def test_monitoring_postgres_evaluation_rollback(engine, monkeypatch):
+    from pathlib import Path
+    from app.ingestion.connector import fixture_batch
+    from app.ingestion.service import ingest
+    from app.monitoring.service import evaluate_run
+    from app.monitoring.models import Evaluation, Alert
+
+    monkeypatch.setenv("DQ_ENABLED", "false")
+    target = ingest(
+        engine, lambda: fixture_batch(Path(__file__).parent / "fixtures/cms_registry_a.csv", 5), "fixture", 5
+    )
+
+    def fail():
+        raise RuntimeError("fault injection")
+
+    with pytest.raises(RuntimeError):
+        evaluate_run(engine, target, before_commit=fail)
+    with Session(engine) as db:
+        assert db.scalar(select(func.count()).select_from(Evaluation).where(Evaluation.run_id == target)) == 0
+        assert db.scalar(select(func.count()).select_from(Alert).where(Alert.run_id == target)) == 0
