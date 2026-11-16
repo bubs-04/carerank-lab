@@ -1,0 +1,365 @@
+{
+  "scope": "Verification-only SQLite session adapter; not PostgreSQL or full Compose verification",
+  "checks": [
+    {
+      "port": 15131,
+      "path": "/",
+      "status": 200,
+      "body": "Vite HTML"
+    },
+    {
+      "port": 15131,
+      "path": "/api/dataops/monitoring/summary?mode=fixture",
+      "status": 200,
+      "body": {
+        "health": "attention",
+        "explanation": "A latest rule failed or earlier alerts still require investigation. Resolution does not rewrite a failed evaluation.",
+        "profile": "1835f8b9442a53b41e6b12904658d6dd3424f5b6a28eef6b3be871dedf8f9fb4",
+        "expected_rules": 12,
+        "latest_run": {
+          "id": "0825e111-b118-4773-981a-8d516bb7e403",
+          "source_id": "fixture-mj5m-pzi6",
+          "snapshot_id": "3ac8ba81-73ca-4544-a41c-37575bc408d8",
+          "started_at": "2026-11-16T06:37:03.647427",
+          "finished_at": "2026-11-16T06:37:03.655502",
+          "seconds": 0.016139375045895576,
+          "status": "no_change",
+          "requested": 5,
+          "received": 5,
+          "valid": 4,
+          "rejected": 1,
+          "warnings": 3,
+          "error_code": null,
+          "provenance": {
+            "mode": "fixture",
+            "dataset_id": "mj5m-pzi6",
+            "release": null,
+            "fixture_sha256": "5b502038772a987a7dcb123117f796e6360d9e03b4b12439f7ff6d7125ada6b6",
+            "retrieval_method": "local_csv_fixture"
+          }
+        },
+        "evaluations": {
+          "passed": 8,
+          "failed": 4
+        },
+        "open_by_severity": {
+          "warning": 12
+        },
+        "enabled": true,
+        "caveat": "Source-order prefix only: cutoff shifts, address identity changes and rejected rows can alter membership. These are review signals, not national clinician entries/exits or clinical quality."
+      }
+    },
+    {
+      "port": 18131,
+      "path": "/api/dataops/monitoring/alerts?mode=fixture",
+      "status": 200,
+      "body": {
+        "items": [
+          {
+            "id": "18238660-68a9-4c1e-a1b3-389381398c3b",
+            "evaluation_id": "d25bb642-1d55-4ab4-846e-4a4e9e538dd7",
+            "run_id": "0825e111-b118-4773-981a-8d516bb7e403",
+            "rule_version_id": "1d74f135f22a831653f7a579e06292b74592e023b446aba4ce40f951b138c473",
+            "severity": "warning",
+            "status": "open",
+            "assigned_to": null,
+            "resolution": null,
+            "revision": 1,
+            "created_at": "2026-11-16T06:37:03.674891",
+            "updated_at": "2026-11-16T06:37:03.674891"
+          },
+          {
+            "id": "a01b2a08-b25e-4916-a952-853113b51786",
+            "evaluation_id": "5d3a1ee3-b227-4e07-bcc0-93ddc493dd17",
+            "run_id": "0825e111-b118-4773-981a-8d516bb7e403",
+            "rule_version_id": "f41043772d7c9310184f6f544163d6b1134f9266964295eb73e826d163850cb1",
+            "severity": "warning",
+            "status": "open",
+            "assigned_to": null,
+            "resolution": null,
+            "revision": 1,
+            "created_at": "2026-11-16T06:37:03.674062",
+            "updated_at": "2026-11-16T06:37:03.674063"
+          },
+          {
+            "id": "85b3d5af-236f-4c21-b775-40797d244c86",
+            "evaluation_id": "3e3b9d7e-ba39-4e78-b34c-1c871080af70",
+            "run_id": "0825e111-b118-4773-981a-8d516bb7e403",
+            "rule_version_id": "529396ace01f55a55ee3a03118478abca6e8d0e7bcadcfa440f35d9f478d30cb",
+            "severity": "warning",
+            "status": "open",
+            "assigned_to": null,
+            "resolution": null,
+            "revision": 1,
+            "created_at": "2026-11-16T06:37:03.673197",
+            "updated_at": "2026-11-16T06:37:03.673198"
+          },
+          {
+            "id": "844873f4-ece0-490c-a02e-b290ded6a670",
+            "evaluation_id": "b8de1476-b008-4e8d-9280-92afe076f1ca",
+            "run_id": "0825e111-b118-4773-981a-8d516bb7e403",
+            "rule_version_id": "435fae9f48992a0b66978f0c9cb722da6164a52d66bcdb8b2e3ef3e2f937b66d",
+            "severity": "warning",
+            "status": "open",
+            "assigned_to": null,
+            "resolution": null,
+            "revision": 1,
+            "created_at": "2026-11-16T06:37:03.670428",
+            "updated_at": "2026-11-16T06:37:03.670429"
+          },
+          {
+            "id": "570ef501-7605-487f-94d0-ab687b5b2119",
+            "evaluation_id": "e912176f-e183-46f7-a212-8f8e34132acd",
+            "run_id": "97f944d2-5bd2-4f9c-9227-9c1dfe31bc02",
+            "rule_version_id": "1d74f135f22a831653f7a579e06292b74592e023b446aba4ce40f951b138c473",
+            "severity": "warning",
+            "status": "open",
+            "assigned_to": null,
+            "resolution": null,
+            "revision": 1,
+            "created_at": "2026-11-16T06:37:03.205263",
+            "updated_at": "2026-11-16T06:37:03.205264"
+          },
+          {
+            "id": "77289386-1fca-4a2d-8076-4cf0222ec157",
+            "evaluation_id": "2b5351e5-e985-4813-9bf0-671a2f4dbb0f",
+            "run_id": "97f944d2-5bd2-4f9c-9227-9c1dfe31bc02",
+            "rule_version_id": "f41043772d7c9310184f6f544163d6b1134f9266964295eb73e826d163850cb1",
+            "severity": "warning",
+            "status": "open",
+            "assigned_to": null,
+            "resolution": null,
+            "revision": 1,
+            "created_at": "2026-11-16T06:37:03.204429",
+            "updated_at": "2026-11-16T06:37:03.204430"
+          },
+          {
+            "id": "d4cf6b25-f6ef-44d8-83e5-14c66efaa393",
+            "evaluation_id": "b06b2830-e4b2-440c-8575-edd8fda80a6d",
+            "run_id": "97f944d2-5bd2-4f9c-9227-9c1dfe31bc02",
+            "rule_version_id": "529396ace01f55a55ee3a03118478abca6e8d0e7bcadcfa440f35d9f478d30cb",
+            "severity": "warning",
+            "status": "open",
+            "assigned_to": null,
+            "resolution": null,
+            "revision": 1,
+            "created_at": "2026-11-16T06:37:03.203548",
+            "updated_at": "2026-11-16T06:37:03.203548"
+          },
+          {
+            "id": "5528f2b2-1f48-41da-b2ce-6e8dfb5613a0",
+            "evaluation_id": "3126d404-faba-45bb-8944-b6e818d9a004",
+            "run_id": "97f944d2-5bd2-4f9c-9227-9c1dfe31bc02",
+            "rule_version_id": "435fae9f48992a0b66978f0c9cb722da6164a52d66bcdb8b2e3ef3e2f937b66d",
+            "severity": "warning",
+            "status": "open",
+            "assigned_to": null,
+            "resolution": null,
+            "revision": 1,
+            "created_at": "2026-11-16T06:37:03.200921",
+            "updated_at": "2026-11-16T06:37:03.200922"
+          },
+          {
+            "id": "2de7dcd7-321d-4c35-a5e1-d13f9b8fd8f3",
+            "evaluation_id": "00f3a9df-7e6a-4bb9-8a0f-4194b29a9ef3",
+            "run_id": "4eb1230f-46e0-4bab-b054-3c03df7443f1",
+            "rule_version_id": "1d74f135f22a831653f7a579e06292b74592e023b446aba4ce40f951b138c473",
+            "severity": "warning",
+            "status": "open",
+            "assigned_to": null,
+            "resolution": null,
+            "revision": 1,
+            "created_at": "2026-11-16T06:37:02.743786",
+            "updated_at": "2026-11-16T06:37:02.743788"
+          },
+          {
+            "id": "52d66fc6-179f-4240-a286-05cde7f4e385",
+            "evaluation_id": "01b77ac5-2579-4a85-98a0-01350bb25343",
+            "run_id": "4eb1230f-46e0-4bab-b054-3c03df7443f1",
+            "rule_version_id": "f41043772d7c9310184f6f544163d6b1134f9266964295eb73e826d163850cb1",
+            "severity": "warning",
+            "status": "open",
+            "assigned_to": null,
+            "resolution": null,
+            "revision": 1,
+            "created_at": "2026-11-16T06:37:02.742149",
+            "updated_at": "2026-11-16T06:37:02.742150"
+          },
+          {
+            "id": "ae043e78-906f-4b0b-9826-9d43cddc276e",
+            "evaluation_id": "6276ddb3-e163-45de-837f-119e64c13afd",
+            "run_id": "4eb1230f-46e0-4bab-b054-3c03df7443f1",
+            "rule_version_id": "529396ace01f55a55ee3a03118478abca6e8d0e7bcadcfa440f35d9f478d30cb",
+            "severity": "warning",
+            "status": "open",
+            "assigned_to": null,
+            "resolution": null,
+            "revision": 1,
+            "created_at": "2026-11-16T06:37:02.740981",
+            "updated_at": "2026-11-16T06:37:02.740982"
+          },
+          {
+            "id": "2ba418de-9d36-4256-8d20-3205c05ed93a",
+            "evaluation_id": "6bad829d-a668-429f-a53b-f16f2bc28c80",
+            "run_id": "4eb1230f-46e0-4bab-b054-3c03df7443f1",
+            "rule_version_id": "435fae9f48992a0b66978f0c9cb722da6164a52d66bcdb8b2e3ef3e2f937b66d",
+            "severity": "warning",
+            "status": "investigating",
+            "assigned_to": null,
+            "resolution": null,
+            "revision": 2,
+            "created_at": "2026-11-16T06:37:02.738079",
+            "updated_at": "2026-11-16T06:37:04.491043"
+          }
+        ],
+        "total": 12,
+        "page": 1,
+        "page_size": 20
+      }
+    },
+    {
+      "port": 18131,
+      "path": "/api/dataops/monitoring/trends?mode=fixture",
+      "status": 200,
+      "body": {
+        "reference_run_id": "0825e111-b118-4773-981a-8d516bb7e403",
+        "scope": {
+          "selection": "source-order-prefix",
+          "max_rows": 5,
+          "fields": [
+            "npi",
+            "ind_enrl_id",
+            "org_pac_id",
+            "adrs_id",
+            "pri_spec",
+            "citytown",
+            "state"
+          ]
+        },
+        "policy": "cms-registry-v1",
+        "points": [
+          {
+            "run_id": "4eb1230f-46e0-4bab-b054-3c03df7443f1",
+            "snapshot_id": "5410143e-debe-40a7-89fb-810fe8869b2f",
+            "started_at": "2026-11-16T06:37:02.711609",
+            "received": 5,
+            "valid": 4,
+            "rejected": 1,
+            "warnings": 3
+          },
+          {
+            "run_id": "97f944d2-5bd2-4f9c-9227-9c1dfe31bc02",
+            "snapshot_id": "3ac8ba81-73ca-4544-a41c-37575bc408d8",
+            "started_at": "2026-11-16T06:37:03.171454",
+            "received": 5,
+            "valid": 4,
+            "rejected": 1,
+            "warnings": 3
+          },
+          {
+            "run_id": "0825e111-b118-4773-981a-8d516bb7e403",
+            "snapshot_id": "3ac8ba81-73ca-4544-a41c-37575bc408d8",
+            "started_at": "2026-11-16T06:37:03.647427",
+            "received": 5,
+            "valid": 4,
+            "rejected": 1,
+            "warnings": 3
+          }
+        ],
+        "caveat": "Source-order prefix only: cutoff shifts, address identity changes and rejected rows can alter membership. These are review signals, not national clinician entries/exits or clinical quality."
+      }
+    },
+    {
+      "port": 18131,
+      "path": "/api/dataops/versions?mode=fixture",
+      "status": 200,
+      "body": {
+        "items": [
+          {
+            "id": "3ac8ba81-73ca-4544-a41c-37575bc408d8",
+            "source_id": "fixture-mj5m-pzi6",
+            "created_at": "2026-11-16T06:37:03.181384",
+            "checksum": "d051f66f653548efb9c47431eb1393baee3ad2871b87d11c718e10442a64566f",
+            "scope_hash": "3d16d2901ebb1b977e07cc675ff3fabc2253b20c8ab3a4425e6673ed4f4b3ab9",
+            "scope": {
+              "selection": "source-order-prefix",
+              "max_rows": 5,
+              "fields": [
+                "npi",
+                "ind_enrl_id",
+                "org_pac_id",
+                "adrs_id",
+                "pri_spec",
+                "citytown",
+                "state"
+              ]
+            },
+            "provenance": {
+              "mode": "fixture",
+              "dataset_id": "mj5m-pzi6",
+              "release": null,
+              "fixture_sha256": "5b502038772a987a7dcb123117f796e6360d9e03b4b12439f7ff6d7125ada6b6",
+              "retrieval_method": "local_csv_fixture"
+            },
+            "policy": "cms-registry-v1",
+            "received": 5,
+            "valid": 4,
+            "rejected": 1,
+            "warnings": 3,
+            "finding_counts": {
+              "invalid_identifier": 1,
+              "missing_optional": 3
+            }
+          },
+          {
+            "id": "5410143e-debe-40a7-89fb-810fe8869b2f",
+            "source_id": "fixture-mj5m-pzi6",
+            "created_at": "2026-11-16T06:37:02.719460",
+            "checksum": "7d5074f138423139321986c1817a8f4e44779ca8c73f94c74eca488f327b3b61",
+            "scope_hash": "3d16d2901ebb1b977e07cc675ff3fabc2253b20c8ab3a4425e6673ed4f4b3ab9",
+            "scope": {
+              "selection": "source-order-prefix",
+              "max_rows": 5,
+              "fields": [
+                "npi",
+                "ind_enrl_id",
+                "org_pac_id",
+                "adrs_id",
+                "pri_spec",
+                "citytown",
+                "state"
+              ]
+            },
+            "provenance": {
+              "mode": "fixture",
+              "dataset_id": "mj5m-pzi6",
+              "release": null,
+              "fixture_sha256": "44b35b2e5d9af77d4738dfa45f1bd6ad9652ddd5f9458d259a380fe2ea8048a4",
+              "retrieval_method": "local_csv_fixture"
+            },
+            "policy": "cms-registry-v1",
+            "received": 5,
+            "valid": 4,
+            "rejected": 1,
+            "warnings": 3,
+            "finding_counts": {
+              "invalid_identifier": 1,
+              "missing_optional": 3
+            }
+          }
+        ],
+        "total": 2,
+        "page": 1,
+        "page_size": 20
+      }
+    },
+    {
+      "port": 18131,
+      "path": "/api/health",
+      "status": 200,
+      "body": {
+        "status": "ok"
+      }
+    }
+  ]
+}

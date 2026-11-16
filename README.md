@@ -1,4 +1,4 @@
-# CareRank Lab 3.0
+# CareRank Lab 3.1
 
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB) ![React](https://img.shields.io/badge/React-19-149ECA) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1) ![License](https://img.shields.io/badge/License-MIT-green)
 
@@ -6,25 +6,34 @@ An independent educational healthcare provider intelligence platform: reproducib
 
 **The ranking workspace uses fictional providers, encounters and scores. The separate Data Operations registry captures public CMS source records and clearly labeled test fixtures; CMS identities never receive synthetic scores. No patient records are ingested. This project is not affiliated with CMS or Garner and is not suitable for healthcare decisions.**
 
-## CareRank 3.0: versioned public registry
+## CareRank 3.1: data reliability and alert investigation
 
-A CLI resolves the official CMS `mj5m-pzi6` metadata, streams a bounded CSV prefix, validates source identities, records provenance, and atomically publishes versioned captures. Data Operations answers what arrived, what changed, whether processing finished, and which rows need review. The existing synthetic ranking lab is preserved.
+Versioned rules inspect completed registry deliveries, preserve explainable decisions, and create durable alerts for investigation. They distinguish missing evidence from zero errors and compare only compatible sources, bounded-prefix scopes and validation policies.
 
-- Documented identity: NPI + enrollment + optional group PAC ID + address ID; multiple rows per clinician remain distinct.
-- Six isolated registry tables, migration 002, durable run audits, ordered selected-content checksums, idempotent version reuse and PostgreSQL publication locking.
-- Explainable accepted-record comparisons and validation deltas, with explicit bounded-sample caveats.
-- Read-only DataOps APIs and UI; CLI-only external ingestion, no unauthenticated trigger endpoint.
-- Deterministic offline fixtures for CI; separately opt-in live CMS tests.
+- Twelve rules cover rejection, missing fields, duplicate identities, warning/count changes, sample membership changes, failed attempts and recorded source-contract signals.
+- Migration 003 adds four isolated monitoring tables, transactional evaluation, alert deduplication, revision-checked investigation and append-only audit events.
+- Data Operations adds a read-only monitoring view with health, evidence, filtered alert history, audit events and compatible-retrieval trends.
+- Local CLI investigation avoids introducing unauthenticated HTTP writes. Actor names are self-reported local labels.
+- The existing CMS connector, snapshot history/comparison, synthetic ranking, analytics, mobile navigation, Refresh status and frontend stale-response protection remain intact.
 
-**Executed evidence:** 67 backend tests passed / 17 skipped (16 PostgreSQL, 1 optional live); 20 frontend tests passed / 1 optional live-DOM skipped. A separate real CLI ingestion captured 1,000 CMS rows representing 421 NPIs in isolated SQLite, with 1,000 valid / 0 rejected / 0 warnings; a rerun reused one version. PostgreSQL and browser verification remain pending. No new screenshots are claimed.
+**Verification:** see [actual 3.1 results and limitations](docs/VERIFICATION_3.1.md). The deterministic fixture workflow and portable tests ran. Docker/PostgreSQL and actual browser verification remain blocked here; no new screenshots are claimed. Existing screenshots and 3.0 live-CMS results are historical, not 3.1 verification.
 
-[Data engineering guide](docs/CareRank_3.0_Data_Engineering_Guide.docx) · [API](docs/API_3.0.md) · [Validation rules](docs/VALIDATION_3.0.md) · [Verification](docs/VERIFICATION_3.0.md) · [Changelog](docs/CHANGELOG_3.0.md) · [Exercises](docs/EXERCISES_3.0.md) · [Demo](docs/DEMO_3.0_2_MINUTES.md)
+[Word learning guide](docs/CareRank_3.1_Data_Reliability_Guide.docx) · [Readable guide](docs/CareRank_3.1_Data_Reliability_Guide.md) · [Rules](docs/RULES_3.1.md) · [API](docs/API_3.1.md) · [Architecture](docs/ARCHITECTURE_3.1.md) · [Changelog](docs/CHANGELOG_3.1.md) · [Exercises](docs/EXERCISES_3.1.md) · [Two-minute demo](docs/DEMO_3.1_2_MINUTES.md)
 
 ## Existing installation: upgrade safely
 
-Use [the 3.0 Mac upgrade procedure](docs/UPGRADE_3.0_MAC.md). Back up your database, preserve `.env` and the Compose volume, check/apply the supplied patch on `feat/cms-data-ingestion`, run additive migration 002, and rebuild only API/web with `--no-deps`. Do not use the fresh-install seed path to upgrade existing data.
+Use [the beginner-friendly 3.1 Mac upgrade procedure](docs/UPGRADE_3.1_MAC.md). It covers backup, exact-baseline patch review, migration 003, checks preserving your existing 1,000 synthetic providers / 100,000 encounters / 1,000 scores and registry history, testing, and rollback. Rebuild and restart only API/web with `--no-deps`; do not run the seed dependency during an upgrade.
 
-Private GitHub authentication was unavailable. This implementation extends the exact 2.0 ZIP delivered earlier; newer remote commits were not inspected. If the patch check fails against your branch, reconcile with a current branch ZIP rather than overwriting it. Nothing was pushed, merged or deployed.
+The supplied archive identifies commit `351d7143b49b3f2e151d6877d0074ef050d53a60`. Changes are prepared for `feat/data-quality-monitoring`. Nothing was pushed, merged or deployed, and your Mac database and `.env` were not changed.
+
+After migration, backfill existing history without fetching external data:
+
+```bash
+docker compose run --rm --no-deps api python -m app.monitoring evaluate --mode cms --limit 100
+docker compose run --rm --no-deps api python -m app.monitoring evaluate --mode fixture --limit 100
+```
+
+New terminal ingestion attempts evaluate automatically. See [CLI investigation commands](docs/API_3.1.md). CareRank 3.0 source provenance, validation and bounded-download documentation remains in [the 3.0 guide](docs/CareRank_3.0_Data_Engineering_Guide.md).
 
 ## Start here on a Mac (fresh installation)
 
@@ -34,7 +43,7 @@ Use [Mac setup](docs/MAC_SETUP_GUIDE.md) and the [beginner guide](docs/CareRank_
 bash scripts/start_mac.sh
 ```
 
-This path uses the Mac's shell and OpenSSL and does not require host Python or Make. If you already have the original app running, follow [Apply the 3.0 update](docs/UPGRADE_3.0_MAC.md); preserve your existing `.env` and database volume.
+This path uses the Mac's shell and OpenSSL and does not require host Python or Make. If you already have the original app running, follow [Apply the 3.1 update](docs/UPGRADE_3.1_MAC.md); preserve your existing `.env` and database volume.
 
 [Historical 1.x Mac review results](docs/MAC_VERIFICATION_REPORT.md) distinguish new checks from the historical Linux build. The user reported opening the original site and comparing providers locally; this is a manual report, not an automated browser pass for the updated code.
 
@@ -99,7 +108,7 @@ With observed outcomes `n`, total encounters `N`, residual `r = mean(outcome −
 - Reliability `100 × (n/N) × w`; volume `100 × min(N/200, 1)`.
 - Final score `0.60 × outcome + 0.25 × cost + 0.10 × reliability + 0.05 × volume`, rounded to two decimals, only when `n ≥ 30` and completeness `n/N ≥ 0.8`. Zero encounters is ineligible.
 
-Costs are normalized per procedure and risk before comparison with the specialty mean. The scatter intentionally shows raw mean cost, so it is not the cost component. Higher simulated scores or lower costs do not establish actual clinical superiority. The scoring algorithm, generator and assumptions are unchanged in 2.0.
+Costs are normalized per procedure and risk before comparison with the specialty mean. The scatter intentionally shows raw mean cost, so it is not the cost component. Higher simulated scores or lower costs do not establish actual clinical superiority. The scoring algorithm, generator and assumptions are unchanged by 3.1.
 
 ## Architecture
 
@@ -164,7 +173,7 @@ npm run dev
 
 ## Tests and measurements
 
-**Historical 2.0 checks** (see the 3.0 report above for current results): **28 backend passed / 14 PostgreSQL skipped; 13 frontend passed / 1 live skipped; production build, Ruff and Prettier passed.** Compose configuration parsed. Docker engine was unavailable; Playwright failed at Chrome launch before navigation (one failed, one not run). No actual upgraded screenshots or end-to-end pass are claimed. See [verification details and safe local steps](docs/VERIFICATION_2.0.md).
+**Historical 2.0 checks** (see the 3.1 report above for current results): **28 backend passed / 14 PostgreSQL skipped; 13 frontend passed / 1 live skipped; production build, Ruff and Prettier passed.** Compose configuration parsed. Docker engine was unavailable; Playwright failed at Chrome launch before navigation (one failed, one not run). No actual upgraded screenshots or end-to-end pass are claimed. See [verification details and safe local steps](docs/VERIFICATION_2.0.md).
 
 
 ```bash
@@ -185,7 +194,7 @@ See the [historical 1.x verification report](docs/IMPLEMENTATION_VERIFICATION_RE
 
 ## Screenshots
 
-No new 3.0 screenshots are included because Chrome aborted before navigation in this environment. The DataOps workflow will write `docs/dataops.png` and `docs/mobile-dataops.png` when run locally after the two fixture jobs with `DATAOPS_E2E=1`. [Capture instructions and exact filenames](docs/SCREENSHOTS_2.0.md) cover Overview, Analytics, Explorer, Profile, Comparison and two mobile layouts. Run Playwright locally and inspect the actual images before adding them to this README. No mockups are presented as screenshots.
+No new 3.1 screenshots are included because Chrome aborted before navigation in this environment. The DataOps and monitoring workflows will write `docs/dataops.png`, `docs/mobile-dataops.png`, `docs/monitoring.png` and `docs/mobile-monitoring.png` when run locally after the two fixture jobs with `DATAOPS_E2E=1`. [Capture instructions and exact filenames](docs/SCREENSHOTS_2.0.md) cover Overview, Analytics, Explorer, Profile, Comparison and two mobile layouts. Run Playwright locally and inspect the actual images before adding them to this README. No mockups are presented as screenshots.
 
 ## API examples
 
@@ -211,7 +220,7 @@ Synchronous SQLAlchemy keeps a small database-backed API easy to follow. Postgre
 ## Documentation and learning
 
 - [Beginner guide](docs/CareRank_Lab_Beginners_Guide.md) and [Mac setup](docs/MAC_SETUP_GUIDE.md)
-- [Current Mac verification report](docs/MAC_VERIFICATION_REPORT.md)
+- [Historical Mac verification report](docs/MAC_VERIFICATION_REPORT.md)
 - [Complete technical guide](docs/CareRank_Lab_Complete_Technical_Guide.md)
 - [Interview preparation](docs/CareRank_Lab_Interview_Preparation.md)
 - [Exercises](docs/EXERCISES.md) and [separate solutions](docs/EXERCISE_SOLUTIONS.md)
@@ -236,4 +245,4 @@ No authentication, authorization, clinical validation, patient-level longitudina
 
 ## AI assistance
 
-AI assisted the implementation, tests and documentation, including the registry upgrade, and executed the checks explicitly described in the verification reports. Prabhat supplied the scope and learning goals. No independent human code review or hands-on modification by Prabhat is claimed. See the exercises before presenting the project as understood. MIT licensed.
+AI assisted the implementation, tests and documentation, including the registry and monitoring upgrades, and executed the checks explicitly described in the verification reports. Prabhat supplied the scope and learning goals. No independent human code review or hands-on modification by Prabhat is claimed. See the exercises before presenting the project as understood. MIT licensed.

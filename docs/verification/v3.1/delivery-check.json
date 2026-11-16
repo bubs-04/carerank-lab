@@ -1,0 +1,12 @@
+{
+  "baseline_commit": "351d7143b49b3f2e151d6877d0074ef050d53a60",
+  "baseline_archive_sha256": "def57117191eefca763ee2b0d9f3c83dd50cf69e37c1b1f8e01e13a60568e3e2",
+  "patch_apply_check": "passed",
+  "all_delivered_file_bytes_match_patched_baseline": true,
+  "complete_source_file_count": 190,
+  "modified_files": 12,
+  "added_files": 41,
+  "deleted_files": 0,
+  "excluded": "Git metadata, .env, databases, backups, dependencies, build products and browser traces",
+  "note": "Final patch checked again after this report was written."
+}

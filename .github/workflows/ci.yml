@@ -51,6 +51,8 @@ jobs:
             docs/mobile-analytics.png
             docs/dataops.png
             docs/mobile-dataops.png
+            docs/monitoring.png
+            docs/mobile-monitoring.png
             docs/mobile.png
             frontend/test-results/
           if-no-files-found: warn

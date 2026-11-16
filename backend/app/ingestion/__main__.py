@@ -41,6 +41,9 @@ def main():
             if not run or run.status != "running":
                 parser.error("Only an existing running audit may be marked interrupted")
             run.status, run.error_code, run.finished_at = "interrupted", "operator_marked_interrupted", now()
+        from ..monitoring.service import evaluate_safely
+
+        evaluate_safely(engine, args.mark_interrupted)
         print(canonical({"run_id": args.mark_interrupted, "status": "interrupted"}))
         return
     connector = CMSConnector(settings)

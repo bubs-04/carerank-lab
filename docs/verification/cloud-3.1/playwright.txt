@@ -1,0 +1,21 @@
+
+> carerank-lab@1.0.0 e2e
+> playwright test
+
+
+Running 5 tests using 1 worker
+
+(node:1602) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 e2e/dataops.spec.ts:2:1 › fixture ingestion history, comparison, findings and mobile layout (4.0s)
+  ✓  2 e2e/dataops.spec.ts:53:1 › refresh status stays on Data operations and preserves fixture mode (2.0s)
+  ✓  3 e2e/monitoring.spec.ts:2:1 › monitoring evidence, safe read-only investigation, refresh and mobile navigation (3.6s)
+  ✓  4 e2e/workflow.spec.ts:2:1 › live data supports search, pagination, details, and comparison (4.5s)
+  ✓  5 e2e/workflow.spec.ts:68:1 › analytics covers the full cohort and supports profile navigation on mobile (3.8s)
+
+  5 passed (20.2s)
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.2
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.2
+npm notice To update run: npm install -g npm@12.2.2
+npm notice

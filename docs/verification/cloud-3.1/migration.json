@@ -1,0 +1,35 @@
+{
+  "before": {
+    "alembic_version": 1,
+    "pipeline_runs": 1,
+    "providers": 1000,
+    "encounters": 100000,
+    "scores": 1000,
+    "registry_sources": 1,
+    "registry_snapshots": 2,
+    "registry_runs": 2,
+    "registry_records": 10,
+    "registry_changes": 1,
+    "registry_findings": 8
+  },
+  "after": {
+    "alembic_version": 1,
+    "pipeline_runs": 1,
+    "providers": 1000,
+    "encounters": 100000,
+    "scores": 1000,
+    "registry_sources": 1,
+    "registry_snapshots": 2,
+    "registry_runs": 2,
+    "registry_records": 10,
+    "registry_changes": 1,
+    "registry_findings": 8
+  },
+  "migration": "003",
+  "monitoring": {
+    "monitor_rules": 12,
+    "monitor_evaluations": 24,
+    "monitor_alerts": 8,
+    "monitor_events": 8
+  }
+}
