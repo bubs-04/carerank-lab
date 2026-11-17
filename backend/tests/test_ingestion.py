@@ -399,7 +399,7 @@ def test_registry_migration_roundtrip_preserves_synthetic_data(tmp_path, monkeyp
     from sqlalchemy import inspect, text
     from app.db import get_engine
 
-    monkeypatch.setenv("DATABASE_URL", "sqlite:///" + str(tmp_path / "migration.sqlite"))
+    monkeypatch.setenv("DATABASE_URL", "sqlite:///" + str(tmp_path / "carerank_test"))
     get_engine.cache_clear()
     try:
         config = Config("alembic.ini")

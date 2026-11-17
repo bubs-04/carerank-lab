@@ -1,4 +1,4 @@
--- Run as schema owner/administrator after migration 004, against the intended DB.
+-- Run as schema owner/administrator after migration 005, against the intended DB.
 -- psql -v ON_ERROR_STOP=1 -v runtime_role=carerank_api -d carerank -f docs/runtime-grants.sql
 -- Create this LOGIN role separately with a prompted secret. No credentials belong here.
 \set ON_ERROR_STOP on
@@ -41,6 +41,6 @@ GRANT UPDATE (status, assigned_to, assigned_user_id, resolution, revision, updat
   ON monitor_alerts TO :"runtime_role";
 GRANT SELECT, INSERT ON monitor_events, auth_events TO :"runtime_role";
 GRANT SELECT ON auth_users TO :"runtime_role";
-GRANT UPDATE (role, active) ON auth_users TO :"runtime_role";
+GRANT UPDATE (role, active, revision) ON auth_users TO :"runtime_role";
 GRANT SELECT, INSERT, UPDATE, DELETE ON auth_sessions, auth_login_limits TO :"runtime_role";
 COMMIT;

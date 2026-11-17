@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { authenticatedMutation, useAuth } from "./Auth";
+import { authenticatedMutation, AuthMutationError, useAuth } from "./Auth";
 import type { User } from "./Auth";
 import { useApi } from "./api";
 
-type Account = User & { active: boolean };
+type Account = User & { active: boolean; revision: number };
 type Audit = {
   id: string;
   actor_user_id: string | null;
@@ -15,6 +15,7 @@ type Audit = {
 
 export default function Administration() {
   const [refresh, setRefresh] = useState(0);
+  const [conflict, setConflict] = useState("");
   const users = useApi<Account[]>("/api/auth/admin/users", refresh);
   const events = useApi<Audit[]>("/api/auth/admin/events", refresh);
   const name = (id: string | null) =>
@@ -29,6 +30,11 @@ export default function Administration() {
       </p>
       <section className="panel">
         <h2>Workspace accounts</h2>
+        {conflict && (
+          <p role="alert">
+            {conflict} Review the latest account settings before trying again.
+          </p>
+        )}
         <p>
           Provisioning is restricted to the development command line. At least
           one active Administrator must remain.
@@ -41,9 +47,16 @@ export default function Administration() {
           <div className="account-list">
             {users.data.map((account) => (
               <AccountForm
-                key={`${account.id}-${refresh}`}
+                key={`${account.id}-${account.revision}-${refresh}`}
                 account={account}
-                onSaved={() => setRefresh((n) => n + 1)}
+                onSaved={() => {
+                  setConflict("");
+                  setRefresh((n) => n + 1);
+                }}
+                onConflict={(message) => {
+                  setConflict(message);
+                  setRefresh((n) => n + 1);
+                }}
               />
             ))}
           </div>
@@ -90,9 +103,11 @@ export default function Administration() {
 function AccountForm({
   account,
   onSaved,
+  onConflict,
 }: {
   account: Account;
   onSaved: () => void;
+  onConflict: (message: string) => void;
 }) {
   const auth = useAuth()!;
   const [role, setRole] = useState(account.role);
@@ -111,13 +126,21 @@ function AccountForm({
           await authenticatedMutation(
             `/api/auth/users/${encodeURIComponent(account.id)}`,
             auth.csrf_token,
-            { role, active },
+            {
+              expected_revision: account.revision,
+              ...(role !== account.role ? { role } : {}),
+              ...(active !== account.active ? { active } : {}),
+            },
             "PATCH",
           );
           if (account.id === auth.user.id)
             window.dispatchEvent(new Event("carerank:session-expired"));
           else onSaved();
         } catch (cause) {
+          if (cause instanceof AuthMutationError && cause.status === 409) {
+            onConflict(cause.message);
+            return;
+          }
           setError(
             cause instanceof Error ? cause.message : "Account update failed.",
           );

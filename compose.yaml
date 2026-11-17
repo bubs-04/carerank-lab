@@ -25,14 +25,23 @@ services:
     command: ["python", "-m", "app.bootstrap"]
     depends_on:
       migrate: {condition: service_completed_successfully}
+  runtime:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://carerank:${POSTGRES_PASSWORD}@db:5432/carerank
+      RUNTIME_DATABASE_URL: postgresql+psycopg://carerank_api:${API_DATABASE_PASSWORD:?Run make setup first}@db:5432/carerank
+    command: ["python", "-m", "app.runtime_role"]
+    depends_on:
+      seed: {condition: service_completed_successfully}
   api:
     build: ./backend
     environment:
       APP_ENV: ${APP_ENV:-production}
       AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-true}
       AUTH_SESSION_SECONDS: ${AUTH_SESSION_SECONDS:-28800}
+      AUTH_TRUSTED_PROXIES: 172.30.84.3/32
       AUTH_ALLOWED_ORIGINS: ${AUTH_ALLOWED_ORIGINS:-http://127.0.0.1:5173,http://localhost:5173,http://127.0.0.1:8080,http://localhost:8080}
-      DATABASE_URL: postgresql+psycopg://carerank:${POSTGRES_PASSWORD}@db:5432/carerank
+      DATABASE_URL: postgresql+psycopg://carerank_api:${API_DATABASE_PASSWORD:?Run make setup first}@db:5432/carerank
       DQ_ENABLED: ${DQ_ENABLED:-true}
       DQ_REJECTED_PERCENT: ${DQ_REJECTED_PERCENT:-5}
       DQ_MISSING_PERCENT: ${DQ_MISSING_PERCENT:-5}
@@ -40,9 +49,11 @@ services:
       DQ_WARNING_RATE_CHANGE: ${DQ_WARNING_RATE_CHANGE:-10}
       DQ_ACCEPTED_CHANGE_PERCENT: ${DQ_ACCEPTED_CHANGE_PERCENT:-20}
       DQ_MEMBERSHIP_PERCENT: ${DQ_MEMBERSHIP_PERCENT:-25}
-    ports: ["127.0.0.1:8000:8000"]
+    networks:
+      default: {}
+      proxy: {}
     depends_on:
-      seed: {condition: service_completed_successfully}
+      runtime: {condition: service_completed_successfully}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
       interval: 5s
@@ -51,7 +62,16 @@ services:
   web:
     build: ./frontend
     ports: ["127.0.0.1:8080:8080"]
+    networks:
+      front: {}
+      proxy: {ipv4_address: 172.30.84.3}
     depends_on:
       api: {condition: service_healthy}
 volumes:
   pgdata:
+networks:
+  front: {}
+  proxy:
+    internal: true
+    ipam:
+      config: [{subnet: 172.30.84.0/24, ip_range: 172.30.84.128/25}]

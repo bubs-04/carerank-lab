@@ -1,6 +1,6 @@
 # CareRank 4.0 — five-minute technical demonstration
 
-Use an isolated development demonstration instance backed by `carerank_test`. Never demonstrate lifecycle writes against history that must remain unchanged. Complete migration 004, prepare synthetic ranking data and registry fixtures A/B, and provision distinct Viewer, Analyst and Administrator accounts using the development-only CLI. Keep passwords out of the shared screen and terminal history. Use a second browser context for the viewer. See [README](../README.md) for commands and [executed verification](VERIFICATION_4.0.md) for the tested environment.
+Use an isolated development demonstration instance backed by `carerank_test`. Never demonstrate lifecycle writes against history that must remain unchanged. Complete migration 005, prepare synthetic ranking data and registry fixtures A/B, and provision distinct Viewer, Analyst and Administrator accounts using the development-only CLI. Keep passwords out of the shared screen and terminal history. Use a second browser context for the viewer. See [README](../README.md) for commands and [executed verification](VERIFICATION_4.0.md) for the tested environment.
 
 ## 0:00–0:45 — authentication and trust boundary
 
@@ -20,10 +20,10 @@ Open the same incident in two tabs before updating it. Save a decision in the fi
 
 ## 3:30–4:15 — administration and preservation
 
-Sign in as Administrator. Show account role/activation management and security history if using the administration interface, or the documented protected account endpoints. Explain that account changes revoke sessions and cannot remove the last active administrator. Historical 3.1 CLI labels remain explicitly unauthenticated; 4.0 web actions carry stable account references. Show the migration preservation evidence for snapshots, synthetic data, alerts and old audit events.
+Sign in as Administrator. Show account role/activation management and security history if using the administration interface, or the documented protected account endpoints. Explain that account changes require the reviewed revision, revoke sessions and cannot remove the last active administrator. Use two administration tabs to show a stale role/activation change rejected with 409, followed by refreshed controls and a deliberate retry; stale forms cannot restore revoked access. Historical 3.1 CLI labels remain explicitly unauthenticated; 4.0 web actions carry stable account references. Show the migration preservation evidence for snapshots, synthetic data, alerts and old audit events.
 
 ## 4:15–5:00 — architecture and verification
 
-Open [the architecture diagrams](ARCHITECTURE_4.0.md). Walk through same-origin browser requests, authentication, the mutation guard, transaction/revision checks, and atomic audit insertion. Point to actual backend, React, production-build and Chromium results in [VERIFICATION_4.0.md](VERIFICATION_4.0.md), including negative security checks. State remaining limits: local development provisioning, no SSO/MFA or production account recovery, no multi-tenant model, and privileged database administrators can alter schema. Close with the draft PR and review scope; no production deployment is implied.
+Open [the architecture diagrams](ARCHITECTURE_4.0.md). Walk through the trusted proxy overwriting client addresses, separate account/source limits with bounded state, authentication, transaction/revision checks and atomic audit insertion. Point out the restricted API database role and separate migration credentials. Point to actual backend, React, production-build and Chromium results in [VERIFICATION_4.0.md](VERIFICATION_4.0.md), including negative security checks. State remaining limits: local development provisioning, no SSO/MFA or production account recovery, no multi-tenant model, and privileged database administrators can alter schema. Close with the draft PR and review scope; no production deployment is implied.
 
 The demo may change only the disposable test database. Do not display passwords, raw session cookies, CSRF values or database connection URLs while sharing the screen.

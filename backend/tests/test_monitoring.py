@@ -399,7 +399,7 @@ def test_migration_audit_immutability_and_registry_preservation(tmp_path, monkey
     from sqlalchemy.exc import DBAPIError
     from app.db import get_engine
 
-    monkeypatch.setenv("DATABASE_URL", "sqlite:///" + str(tmp_path / "migration.sqlite"))
+    monkeypatch.setenv("DATABASE_URL", "sqlite:///" + str(tmp_path / "carerank_test"))
     monkeypatch.setenv("DQ_ENABLED", "false")
     get_engine.cache_clear()
     config = Config("alembic.ini")

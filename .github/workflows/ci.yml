@@ -39,7 +39,10 @@ jobs:
           from pathlib import Path
           password = next(line.split('=', 1)[1] for line in Path('.env').read_text().splitlines()
                           if line.startswith('POSTGRES_PASSWORD='))
-          values = {'CARERANK_CI_DATABASE_URL': f'postgresql+psycopg://carerank:{password}@db:5432/carerank_test'}
+          values = {
+              'CARERANK_CI_DATABASE_URL': f'postgresql+psycopg://carerank:{password}@db:5432/carerank_test',
+              'CARERANK_CI_RUNTIME_URL': f'postgresql+psycopg://carerank_api_test:{secrets.token_hex(24)}@db:5432/carerank_test',
+          }
           for prefix, role in [('E2E', 'analyst'), ('E2E_VIEWER', 'viewer'), ('E2E_ADMIN', 'administrator')]:
               values[f'{prefix}_USERNAME'] = f'ci-{role}'
               values[f'{prefix}_PASSWORD'] = secrets.token_urlsafe(32)
@@ -75,11 +78,12 @@ jobs:
                               '--display-name', 'CI ' + role.title(), '--role', role, '--password-stdin'],
                              input=os.environ[f'{prefix}_PASSWORD'] + '\n', text=True, check=True)
           PY
+          docker compose run --rm --no-deps -e DATABASE_URL="$CARERANK_CI_DATABASE_URL" -e RUNTIME_DATABASE_URL="$CARERANK_CI_RUNTIME_URL" api python -m app.runtime_role
           cat > "$RUNNER_TEMP/carerank-e2e.yaml" <<'YAML'
           services:
             api:
               environment:
-                DATABASE_URL: ${CARERANK_CI_DATABASE_URL:?Disposable test database required}
+                DATABASE_URL: ${CARERANK_CI_RUNTIME_URL:?Restricted disposable test database login required}
           YAML
           docker compose -f compose.yaml -f "$RUNNER_TEMP/carerank-e2e.yaml" up -d --no-deps api
           for i in $(seq 1 60); do
@@ -87,6 +91,8 @@ jobs:
             sleep 2
           done
           exit 1
+      - name: Reverse-proxy source isolation and spoof protection
+        run: python scripts/verify_proxy_security.py
       - name: Live React to PostgreSQL workflow
         run: npm test
         working-directory: frontend

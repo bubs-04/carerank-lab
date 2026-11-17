@@ -15,6 +15,16 @@ export const AuthContext = createContext<Auth | null>(null);
 export const useAuth = () => useContext(AuthContext);
 export const SESSION_EXPIRED = "carerank:session-expired";
 
+export class AuthMutationError extends Error {
+  constructor(
+    public readonly status: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = "AuthMutationError";
+  }
+}
+
 export async function authenticatedMutation(
   url: string,
   csrf: string,
@@ -31,7 +41,8 @@ export async function authenticatedMutation(
     window.dispatchEvent(new Event(SESSION_EXPIRED));
   if (!response.ok) {
     const payload = await response.json().catch(() => ({}));
-    throw new Error(
+    throw new AuthMutationError(
+      response.status,
       response.status === 409 && url.includes("/alerts/")
         ? "This incident changed while you were reviewing it. Reload the latest revision before saving your decision."
         : response.status === 429

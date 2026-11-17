@@ -7,6 +7,7 @@ domain tests use a viewer override; this module exercises real passwords/cookies
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from pathlib import Path
+from threading import Barrier, Event, Lock
 import json
 import os
 import subprocess
@@ -15,16 +16,17 @@ import uuid
 
 from alembic import command
 from alembic.config import Config
+from fastapi import HTTPException, Request
 from fastapi.testclient import TestClient
 import pytest
-from sqlalchemy import create_engine, delete, func, inspect, select, text
+from sqlalchemy import create_engine, delete, event, func, inspect, select, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 
 from app.main import app
 from app.db import get_engine
-from app.auth.models import AuthSession, LoginLimit, User
+from app.auth.models import AuthSession, LoginLimit, SecurityEvent, User
 from app.auth.security import hash_password, now, token_hash, verify_password
 from app.auth.service import create_user
 from app.ingestion.connector import fixture_batch
@@ -43,13 +45,21 @@ def security_engine():
     target = make_url(url)
     if target.get_backend_name() != "postgresql" or target.database != "carerank_test":
         pytest.fail("Security integration tests require PostgreSQL database carerank_test")
-    keys = ("DATABASE_URL", "APP_ENV", "AUTH_COOKIE_SECURE", "AUTH_ALLOWED_ORIGINS", "DQ_ENABLED")
+    keys = (
+        "DATABASE_URL",
+        "APP_ENV",
+        "AUTH_COOKIE_SECURE",
+        "AUTH_ALLOWED_ORIGINS",
+        "AUTH_TRUSTED_PROXIES",
+        "DQ_ENABLED",
+    )
     original = {k: os.environ.get(k) for k in keys}
     os.environ.update(
         DATABASE_URL=url,
         APP_ENV="development",
         AUTH_COOKIE_SECURE="false",
         AUTH_ALLOWED_ORIGINS=ORIGIN,
+        AUTH_TRUSTED_PROXIES="",
         DQ_ENABLED="true",
     )
     get_engine.cache_clear()
@@ -147,6 +157,7 @@ def test_migration_003_to_004_preserves_legacy_data_and_audit(security_engine, i
     for table in ("monitor_events",):
         with pytest.raises(DBAPIError), security_engine.begin() as db:
             db.execute(text(f"UPDATE {table} SET note='changed'"))
+    command.upgrade(Config("alembic.ini"), "head")
 
 
 def test_password_hashing_and_production_configuration():
@@ -306,7 +317,9 @@ def test_non_admin_cannot_manage_accounts_or_read_security_audit(security_engine
     assert client.get("/api/auth/admin/events").status_code == 403
     assert (
         client.patch(
-            f"/api/auth/users/{accounts[role]['id']}", headers=headers, json={"role": "administrator"}
+            f"/api/auth/users/{accounts[role]['id']}",
+            headers=headers,
+            json={"expected_revision": 1, "role": "administrator"},
         ).status_code
         == 403
     )
@@ -461,7 +474,9 @@ def test_admin_changes_revoke_sessions_and_append_audit(security_engine, account
     analyst, _ = login(accounts["analyst"])
     admin, headers = login(accounts["administrator"])
     response = admin.patch(
-        f"/api/auth/users/{accounts['analyst']['id']}", headers=headers, json={"role": "viewer"}
+        f"/api/auth/users/{accounts['analyst']['id']}",
+        headers=headers,
+        json={"expected_revision": 1, "role": "viewer"},
     )
     assert response.status_code == 200, response.text
     assert analyst.get("/api/providers").status_code == 401
@@ -469,12 +484,14 @@ def test_admin_changes_revoke_sessions_and_append_audit(security_engine, account
     changed = next(e for e in events if e["action"] == "account_updated")
     assert changed["actor_user_id"] == accounts["administrator"]["id"]
     assert changed["details"] == {
-        "before": {"role": "analyst", "active": True},
-        "after": {"role": "viewer", "active": True},
+        "before": {"role": "analyst", "active": True, "revision": 1},
+        "after": {"role": "viewer", "active": True, "revision": 2},
     }
     assert (
         admin.patch(
-            f"/api/auth/users/{accounts['analyst']['id']}", headers=headers, json={"active": False}
+            f"/api/auth/users/{accounts['analyst']['id']}",
+            headers=headers,
+            json={"expected_revision": 2, "active": False},
         ).status_code
         == 200
     )
@@ -509,7 +526,9 @@ def test_last_administrator_cannot_be_disabled(security_engine, accounts):
             user.active = False
     try:
         response = admin.patch(
-            f"/api/auth/users/{accounts['administrator']['id']}", headers=headers, json={"active": False}
+            f"/api/auth/users/{accounts['administrator']['id']}",
+            headers=headers,
+            json={"expected_revision": 1, "active": False},
         )
         assert response.status_code == 409
         assert admin.get("/api/auth/me").status_code == 200
@@ -517,3 +536,436 @@ def test_last_administrator_cannot_be_disabled(security_engine, accounts):
         with Session(security_engine) as db, db.begin():
             for user_id in ids:
                 db.get(User, user_id).active = True
+
+
+def second_administrator(engine):
+    with Session(engine) as db, db.begin():
+        user = create_user(
+            db, f"second-{uuid.uuid4().hex[:10]}", "Second administrator", "administrator", PASSWORD
+        )
+        return {"id": user.id, "username": user.username}
+
+
+@pytest.mark.parametrize(
+    "first_change, stale_change, final_role, final_active",
+    [
+        ({"role": "viewer"}, {"role": "analyst", "active": False}, "viewer", True),
+        ({"active": False}, {"role": "viewer", "active": True}, "analyst", False),
+    ],
+)
+def test_two_administrators_cannot_restore_stale_access(
+    security_engine, accounts, first_change, stale_change, final_role, final_active
+):
+    first, first_headers = login(accounts["administrator"])
+    second, second_headers = login(second_administrator(security_engine))
+    target = accounts["analyst"]["id"]
+    cached = next(u for u in second.get("/api/auth/admin/users").json() if u["id"] == target)
+    assert cached["revision"] == 1
+    changed = first.patch(
+        f"/api/auth/users/{target}",
+        headers=first_headers,
+        json={"expected_revision": 1, **first_change},
+    )
+    assert changed.status_code == 200 and changed.json()["revision"] == 2
+    stale = second.patch(
+        f"/api/auth/users/{target}",
+        headers=second_headers,
+        json={"expected_revision": cached["revision"], **stale_change},
+    )
+    assert stale.status_code == 409
+    with Session(security_engine) as db:
+        user = db.get(User, target)
+        assert (user.role, user.active, user.revision) == (final_role, final_active, 2)
+        assert (
+            db.scalar(
+                select(func.count())
+                .select_from(SecurityEvent)
+                .where(SecurityEvent.subject_user_id == target, SecurityEvent.action == "account_updated")
+            )
+            == 1
+        )
+
+
+@pytest.mark.parametrize("change", [{"role": "viewer"}, {"active": False}])
+def test_administrator_revoked_during_inflight_update(security_engine, accounts, monkeypatch, change):
+    """Pause a real request after dependencies, revoke it using another authenticated admin."""
+    from app.auth import api
+
+    first, first_headers = login(accounts["administrator"])
+    second, second_headers = login(second_administrator(security_engine))
+    entered, release, guard = Event(), Event(), Lock()
+    original = api.security_lock
+    waiting = False
+
+    def pause_first(db):
+        nonlocal waiting
+        with guard:
+            pause = not waiting
+            waiting = True
+        if pause:
+            entered.set()
+            assert release.wait(10), "Concurrent revocation did not complete"
+        original(db)
+
+    monkeypatch.setattr(api, "security_lock", pause_first)
+    target = accounts["analyst"]["id"]
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        pending = pool.submit(
+            first.patch,
+            f"/api/auth/users/{target}",
+            headers=first_headers,
+            json={"expected_revision": 1, "role": "viewer"},
+        )
+        try:
+            assert entered.wait(10), "Pending administrator never reached transaction boundary"
+            revoked = second.patch(
+                f"/api/auth/users/{accounts['administrator']['id']}",
+                headers=second_headers,
+                json={"expected_revision": 1, **change},
+            )
+            assert revoked.status_code == 200, revoked.text
+        finally:
+            release.set()
+        assert pending.result(timeout=10).status_code == 401
+    with Session(security_engine) as db:
+        assert db.get(User, target).role == "analyst"
+        assert db.get(User, target).revision == 1
+        assert (
+            db.scalar(
+                select(func.count())
+                .select_from(SecurityEvent)
+                .where(SecurityEvent.subject_user_id == target, SecurityEvent.action == "account_updated")
+            )
+            == 0
+        )
+
+
+def test_concurrent_last_administrators_cannot_both_demote(security_engine, accounts, monkeypatch):
+    from app.auth import api
+
+    second = second_administrator(security_engine)
+    administrators = [accounts["administrator"], second]
+    clients = [login(account) for account in administrators]
+    keep = [account["id"] for account in administrators]
+    with Session(security_engine) as db, db.begin():
+        previous = list(
+            db.scalars(
+                select(User).where(User.role == "administrator", User.active.is_(True), User.id.not_in(keep))
+            )
+        )
+        ids = [user.id for user in previous]
+        for user in previous:
+            user.active = False
+    barrier = Barrier(2)
+    original = api.security_lock
+
+    def meet(db):
+        barrier.wait(timeout=10)
+        original(db)
+
+    monkeypatch.setattr(api, "security_lock", meet)
+
+    def demote(index):
+        client, headers = clients[index]
+        return client.patch(
+            f"/api/auth/users/{administrators[index]['id']}",
+            headers=headers,
+            json={"expected_revision": 1, "role": "viewer"},
+        ).status_code
+
+    try:
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            assert sorted(pool.map(demote, range(2))) == [200, 409]
+        with Session(security_engine) as db:
+            assert (
+                db.scalar(
+                    select(func.count())
+                    .select_from(User)
+                    .where(User.role == "administrator", User.active.is_(True))
+                )
+                == 1
+            )
+    finally:
+        with Session(security_engine) as db, db.begin():
+            for user_id in ids:
+                db.get(User, user_id).active = True
+
+
+def test_account_change_and_session_revocation_roll_back_when_audit_insert_fails(
+    security_engine, accounts, monkeypatch
+):
+    from app.auth import api
+
+    analyst, _ = login(accounts["analyst"])
+    admin, headers = login(accounts["administrator"])
+    original = api.record_event
+
+    def invalid_audit(db, action, **fields):
+        # The real PostgreSQL foreign key rejects this audit INSERT at commit.
+        original(db, action, **{**fields, "actor": str(uuid.uuid4())})
+
+    monkeypatch.setattr(api, "record_event", invalid_audit)
+    target = accounts["analyst"]["id"]
+    response = admin.patch(
+        f"/api/auth/users/{target}",
+        headers=headers,
+        json={"expected_revision": 1, "role": "viewer", "active": False},
+    )
+    assert response.status_code == 503
+    assert response.json() == {"detail": "Database unavailable. Check connection and migrations."}
+    assert PASSWORD not in response.text and "INSERT" not in response.text
+    with Session(security_engine) as db:
+        user = db.get(User, target)
+        assert (user.role, user.active, user.revision) == ("analyst", True, 1)
+        assert (
+            db.scalar(
+                select(func.count())
+                .select_from(SecurityEvent)
+                .where(SecurityEvent.subject_user_id == target, SecurityEvent.action == "account_updated")
+            )
+            == 0
+        )
+    assert analyst.get("/api/auth/me").status_code == 200
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"role": "viewer"},
+        {"expected_revision": 0, "role": "viewer"},
+        {"expected_revision": 1},
+        {"expected_revision": 1, "role": None},
+        {"expected_revision": 1, "active": None},
+        {"expected_revision": 1, "role": "viewer", "revision": 99},
+    ],
+)
+def test_account_update_requires_valid_revision_and_intent(security_engine, accounts, payload):
+    admin, headers = login(accounts["administrator"])
+    target = accounts["analyst"]["id"]
+    assert admin.patch(f"/api/auth/users/{target}", headers=headers, json=payload).status_code == 422
+    with Session(security_engine) as db:
+        assert db.get(User, target).revision == 1
+        assert db.get(User, target).role == "analyst"
+
+
+def test_account_update_rejects_anonymous_and_invalid_csrf(security_engine, accounts):
+    target = accounts["analyst"]["id"]
+    url = f"/api/auth/users/{target}"
+    body = {"expected_revision": 1, "role": "administrator"}
+    with TestClient(app) as client:
+        assert (
+            client.patch(url, headers={"Origin": ORIGIN, "X-Role": "administrator"}, json=body).status_code
+            == 401
+        )
+    admin, headers = login(accounts["administrator"])
+    for denied in (
+        {},
+        {"Origin": ORIGIN},
+        {**headers, "Origin": "https://evil.invalid"},
+        {**headers, "X-CSRF-Token": "invalid"},
+    ):
+        assert admin.patch(url, headers=denied, json=body).status_code == 403
+    with Session(security_engine) as db:
+        assert db.get(User, target).role == "analyst"
+        assert db.get(User, target).revision == 1
+
+
+def request_from(address, **headers):
+    return Request(
+        {
+            "type": "http",
+            "client": (address, 1234),
+            "headers": [(key.lower().encode(), value.encode()) for key, value in headers.items()],
+        }
+    )
+
+
+def test_forwarding_identity_only_from_explicit_trusted_proxy(monkeypatch):
+    from app.auth.throttle import source_address
+
+    monkeypatch.setenv("AUTH_TRUSTED_PROXIES", "192.0.2.1/32")
+    assert (
+        source_address(
+            request_from(
+                "192.0.2.2", **{"X-CareRank-Client-IP": "198.51.100.1", "X-Forwarded-For": "198.51.100.2"}
+            )
+        )
+        == "192.0.2.2"
+    )
+    assert (
+        source_address(
+            request_from(
+                "192.0.2.1", **{"X-CareRank-Client-IP": "198.51.100.1", "X-Forwarded-For": "198.51.100.2"}
+            )
+        )
+        == "198.51.100.1"
+    )
+    assert source_address(request_from("::ffff:203.0.113.9")) == "203.0.113.9"
+    assert (
+        source_address(request_from("192.0.2.1", **{"X-CareRank-Client-IP": "::ffff:203.0.113.9"}))
+        == "203.0.113.9"
+    )
+    for value in ("", "invalid", "198.51.100.1, 198.51.100.2", "fe80::1%eth0"):
+        with pytest.raises(HTTPException) as error:
+            source_address(request_from("192.0.2.1", **{"X-CareRank-Client-IP": value}))
+        assert error.value.status_code == 400
+
+
+def test_blocked_source_allocates_no_username_rows_or_cleanup_work(security_engine, accounts):
+    from app.auth.throttle import throttle
+
+    request = request_from("192.0.2.30")
+    for index in range(30):
+        with Session(security_engine) as db:
+            throttle(db, request, f"initial-{index}")
+    statements = []
+
+    def observe(connection, cursor, statement, parameters, context, executemany):
+        statements.append(statement.lower())
+
+    event.listen(security_engine, "before_cursor_execute", observe)
+    try:
+        for index in range(100):
+            with Session(security_engine) as db, pytest.raises(HTTPException) as error:
+                throttle(db, request, f"arbitrary-new-name-{index}")
+            assert error.value.status_code == 429
+    finally:
+        event.remove(security_engine, "before_cursor_execute", observe)
+    limit_queries = [sql for sql in statements if "auth_login_limits" in sql]
+    assert len(limit_queries) == 100
+    assert all(sql.lstrip().startswith("select") and "count(" not in sql for sql in limit_queries)
+    with Session(security_engine) as db:
+        assert db.scalar(select(func.count()).select_from(LoginLimit)) == 31
+
+
+def test_login_bucket_capacity_is_atomic_across_connections(security_engine, accounts, monkeypatch):
+    from app.auth import throttle as limits
+
+    monkeypatch.setattr(limits, "MAX_BUCKETS", 12)
+    barrier = Barrier(8)
+
+    def attempt(index):
+        barrier.wait(timeout=10)
+        with Session(security_engine) as db:
+            try:
+                limits.throttle(db, request_from(f"192.0.2.{index + 1}"), f"unique-{index}")
+                return 200
+            except HTTPException as error:
+                return error.status_code
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        results = list(pool.map(attempt, range(8)))
+    assert sorted(results) == [200] * 6 + [429] * 2
+    with Session(security_engine) as db:
+        assert db.scalar(select(func.count()).select_from(LoginLimit)) == 12
+        assert set(db.scalars(select(LoginLimit.attempts))) == {1}
+
+
+def test_concurrent_source_limit_has_exact_budget_and_bounded_rows(security_engine, accounts):
+    from app.auth.throttle import throttle
+
+    barrier = Barrier(8)
+
+    def attempt(index):
+        barrier.wait(timeout=10)
+        with Session(security_engine) as db:
+            try:
+                throttle(db, request_from("192.0.2.50"), f"parallel-name-{index}")
+                return 200
+            except HTTPException as error:
+                return error.status_code
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        results = list(pool.map(attempt, range(40)))
+    assert sorted(results) == [200] * 30 + [429] * 10
+    with Session(security_engine) as db:
+        assert db.get(LoginLimit, token_hash("ip:192.0.2.50")).attempts == 30
+        assert db.scalar(select(func.count()).select_from(LoginLimit)) == 31
+
+
+def test_expiry_cleanup_is_indexed_bounded_and_preserves_live_limits(security_engine, accounts):
+    from app.auth.throttle import CLEANUP_BATCH, WINDOW, throttle
+
+    with Session(security_engine) as db, db.begin():
+        db.add_all(
+            [
+                LoginLimit(key=token_hash(f"expired-{i}"), window_start=now() - WINDOW * 2, attempts=10)
+                for i in range(CLEANUP_BATCH + 7)
+            ]
+        )
+        db.add(LoginLimit(key=token_hash("live"), window_start=now(), attempts=10))
+    with Session(security_engine) as db:
+        throttle(db, request_from("192.0.2.40"), "fresh-user")
+    with Session(security_engine) as db:
+        assert db.scalar(select(func.count()).select_from(LoginLimit)) == 10
+        assert db.get(LoginLimit, token_hash("live")).attempts == 10
+        assert (
+            db.scalar(
+                select(func.count()).select_from(LoginLimit).where(LoginLimit.window_start <= now() - WINDOW)
+            )
+            == 7
+        )
+    indexes = inspect(security_engine).get_indexes("auth_login_limits")
+    assert any(index["column_names"] == ["window_start", "key"] for index in indexes)
+
+
+def test_account_limit_spans_sources_without_blocking_unrelated_account(security_engine, accounts):
+    from app.auth.throttle import throttle
+
+    for index in range(10):
+        with Session(security_engine) as db:
+            throttle(db, request_from(f"192.0.2.{index + 1}"), "target-account")
+    with Session(security_engine) as db, pytest.raises(HTTPException) as error:
+        throttle(db, request_from("198.51.100.1"), "target-account")
+    assert error.value.status_code == 429
+    with Session(security_engine) as db:
+        throttle(db, request_from("198.51.100.2"), "unrelated-account")
+        assert db.get(LoginLimit, token_hash("user:unrelated-account")).attempts == 1
+
+
+def test_migration_004_to_005_preserves_existing_accounts_sessions_and_history(security_engine, accounts):
+    """Downgrade only the explicitly guarded disposable test database to exercise the upgrade."""
+    client, _ = login(accounts["administrator"])
+    command.downgrade(Config("alembic.ini"), "004")
+    with security_engine.connect() as db:
+        tables = [name for name in inspect(db).get_table_names() if name != "alembic_version"]
+        columns = {table: [column["name"] for column in inspect(db).get_columns(table)] for table in tables}
+        before = {
+            table: list(
+                db.execute(
+                    text(
+                        "SELECT "
+                        + ",".join(f'"{column}"' for column in names)
+                        + f' FROM "{table}" ORDER BY 1'
+                    )
+                ).mappings()
+            )
+            for table, names in columns.items()
+        }
+    command.upgrade(Config("alembic.ini"), "005")
+    with security_engine.connect() as db:
+        for table, names in columns.items():
+            assert before[table] == list(
+                db.execute(
+                    text(
+                        "SELECT "
+                        + ",".join(f'"{column}"' for column in names)
+                        + f' FROM "{table}" ORDER BY 1'
+                    )
+                ).mappings()
+            ), f"Migration changed existing rows in {table}"
+        assert db.scalar(text("SELECT count(*) FROM auth_users WHERE revision <> 1")) == 0
+    assert client.get("/api/auth/me").status_code == 200
+
+
+@pytest.mark.parametrize("url", ["postgresql+psycopg://localhost/carerank", "sqlite:////tmp/carerank"])
+def test_security_migration_refuses_retained_database_downgrade(monkeypatch, url):
+    import importlib
+    from types import SimpleNamespace
+
+    migration = importlib.import_module("migrations.versions.005_security_review")
+    monkeypatch.setattr(
+        migration.op, "get_bind", lambda: SimpleNamespace(engine=SimpleNamespace(url=make_url(url)))
+    )
+    with pytest.raises(RuntimeError, match="forward-only"):
+        migration.downgrade()

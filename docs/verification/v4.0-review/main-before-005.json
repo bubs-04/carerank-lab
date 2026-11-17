@@ -1,0 +1,251 @@
+{
+  "pipeline_runs": {
+    "columns": [
+      "id",
+      "started_at",
+      "finished_at",
+      "status",
+      "seed",
+      "providers",
+      "encounters",
+      "seconds",
+      "error"
+    ],
+    "count": 1,
+    "sha256": "bb292230a8f20580db20c25e51d544afd8561aae8467e2a41240846093ad020e"
+  },
+  "providers": {
+    "columns": [
+      "id",
+      "name",
+      "specialty",
+      "location"
+    ],
+    "count": 1000,
+    "sha256": "2d50956c362ac2ceb3e167a2367a53d03591cfc3aa5944a5acd002975edadc7d"
+  },
+  "encounters": {
+    "columns": [
+      "id",
+      "provider_id",
+      "procedure",
+      "risk",
+      "cost",
+      "outcome"
+    ],
+    "count": 100000,
+    "sha256": "fff620c9d1e227ec493e1872e4df00b97810b3665af6bc0c41e2d1c96d6e95d5"
+  },
+  "scores": {
+    "columns": [
+      "provider_id",
+      "encounters",
+      "observed",
+      "avg_cost",
+      "quality",
+      "rank",
+      "components"
+    ],
+    "count": 1000,
+    "sha256": "bd11fa1a2a2d6c8a554313dffccedd0fa68cb5756be816fe725b1eb01eeeb9df"
+  },
+  "registry_sources": {
+    "columns": [
+      "id",
+      "dataset_id",
+      "mode",
+      "title",
+      "url"
+    ],
+    "count": 1,
+    "sha256": "9b58e9682984b50e73ca62971ab831b104abcbfeda5bbdfabfe9a70c282ba362"
+  },
+  "registry_snapshots": {
+    "columns": [
+      "id",
+      "source_id",
+      "created_at",
+      "checksum",
+      "scope_hash",
+      "scope",
+      "provenance",
+      "policy",
+      "received",
+      "valid",
+      "rejected",
+      "warnings",
+      "finding_counts"
+    ],
+    "count": 2,
+    "sha256": "0b9ab2203a92acb9b06e518e881ebd8d040a0c8387f3ae44f0a36398d96d0535"
+  },
+  "auth_users": {
+    "columns": [
+      "id",
+      "username",
+      "display_name",
+      "password_hash",
+      "role",
+      "active",
+      "created_at"
+    ],
+    "count": 3,
+    "sha256": "888f753589c71eb94c671f10f97384b87a82c52b63ac5686a4dfcabebe0f9805"
+  },
+  "auth_sessions": {
+    "columns": [
+      "token_hash",
+      "user_id",
+      "csrf_token",
+      "created_at",
+      "expires_at"
+    ],
+    "count": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "registry_runs": {
+    "columns": [
+      "id",
+      "source_id",
+      "snapshot_id",
+      "started_at",
+      "finished_at",
+      "seconds",
+      "status",
+      "requested",
+      "received",
+      "valid",
+      "rejected",
+      "warnings",
+      "error_code",
+      "provenance"
+    ],
+    "count": 2,
+    "sha256": "d5dae76e1ed13a575d0149156e0ed5e32ab0fba90dc9783cd9cf99a0ccfb1807"
+  },
+  "registry_records": {
+    "columns": [
+      "snapshot_id",
+      "row_number",
+      "record_key",
+      "accepted_key",
+      "accepted",
+      "content_hash",
+      "data"
+    ],
+    "count": 10,
+    "sha256": "88a05dd7ae1b9fc937d636284282885df75ac1964d8ee43b17b57b97ed5a12fb"
+  },
+  "auth_login_limits": {
+    "columns": [
+      "key",
+      "window_start",
+      "attempts"
+    ],
+    "count": 2,
+    "sha256": "e81e934660d5b34d289aee48eea9a5c8296ccb5e31e2d3c36702092fa45261a4"
+  },
+  "registry_changes": {
+    "columns": [
+      "old_id",
+      "new_id",
+      "created_at",
+      "summary"
+    ],
+    "count": 1,
+    "sha256": "6813ca90a3f80dfc6f4c843798bc438bf8c7252e5a463e56033f6de1293b3380"
+  },
+  "registry_findings": {
+    "columns": [
+      "id",
+      "run_id",
+      "row_number",
+      "severity",
+      "code",
+      "field"
+    ],
+    "count": 8,
+    "sha256": "b4d0d3f5d61e42ab0471824734e42f408d3be25ab276154e1f5a19fce5eb19b1"
+  },
+  "auth_events": {
+    "columns": [
+      "id",
+      "actor_user_id",
+      "subject_user_id",
+      "action",
+      "details",
+      "created_at"
+    ],
+    "count": 5,
+    "sha256": "51db2370a7ab9987a56fe18dac278db588a77276830db4da7750b8f7f67f8563"
+  },
+  "monitor_alerts": {
+    "columns": [
+      "id",
+      "evaluation_id",
+      "run_id",
+      "rule_version_id",
+      "severity",
+      "status",
+      "assigned_to",
+      "resolution",
+      "revision",
+      "created_at",
+      "updated_at",
+      "assigned_user_id"
+    ],
+    "count": 8,
+    "sha256": "e6553160157510731821935d571d77fffdf405b1635f5e02f64acda4feab7c5c"
+  },
+  "monitor_evaluations": {
+    "columns": [
+      "id",
+      "run_id",
+      "snapshot_id",
+      "baseline_run_id",
+      "rule_version_id",
+      "profile",
+      "observed",
+      "status",
+      "explanation",
+      "evidence",
+      "created_at"
+    ],
+    "count": 24,
+    "sha256": "9d824fef1cc00233e05e82b869da82a1d3a38ad53d168750d9a525843b9e0cc5"
+  },
+  "monitor_rules": {
+    "columns": [
+      "id",
+      "rule_id",
+      "version",
+      "description",
+      "severity",
+      "threshold",
+      "unit",
+      "created_at"
+    ],
+    "count": 12,
+    "sha256": "0f66d17235e091851f1ec3a5bb8b2799258a25c2c73337abddd4d72e4eacec6a"
+  },
+  "monitor_events": {
+    "columns": [
+      "id",
+      "alert_id",
+      "revision",
+      "actor",
+      "action",
+      "from_status",
+      "to_status",
+      "assigned_to",
+      "note",
+      "created_at",
+      "assigned_user_id",
+      "actor_user_id",
+      "previous_assigned_to",
+      "previous_assigned_user_id"
+    ],
+    "count": 8,
+    "sha256": "5ec1c2031712ae7586276dfca41468e98e36330e128bf07599bfde5d7af3667e"
+  }
+}

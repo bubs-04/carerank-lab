@@ -5,7 +5,8 @@ from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import delete, select, func
 from .dependencies import AuthDB, CurrentUser, Writer, Administrator, COOKIE, require_origin, settings
-from .models import User, AuthSession, LoginLimit, SecurityEvent
+from .models import User, AuthSession, SecurityEvent
+from .throttle import throttle
 from .security import now, token_hash, verify_password, DUMMY_HASH
 from .service import security_lock, record_event, recheck_identity
 
@@ -29,33 +30,6 @@ class Login(BaseModel):
     model_config = ConfigDict(extra="forbid")
     username: str = Field(min_length=1, max_length=80)
     password: str = Field(min_length=1, max_length=256)
-
-
-def throttle(db, request, username):
-    """Shared bounded windows across API workers; forwarded IP headers are never trusted."""
-    security_lock(db)
-    moment = now()
-    # Expired bucket cleanup bounds storage under repeated arbitrary usernames.
-    db.execute(delete(LoginLimit).where(LoginLimit.window_start < moment - timedelta(minutes=15)))
-    blocked = False
-    for key, maximum in [
-        ("ip:" + (request.client.host if request.client else "unknown"), 30),
-        ("user:" + username, 10),
-    ]:
-        key = token_hash(key)
-        limit = db.get(LoginLimit, key)
-        if limit is None:
-            limit = LoginLimit(key=key, window_start=moment, attempts=0)
-            db.add(limit)
-        if limit.attempts >= maximum:
-            blocked = True
-        else:
-            limit.attempts += 1
-    db.commit()
-    if blocked:
-        raise HTTPException(
-            429, "Too many sign-in attempts. Try again later.", headers={"Retry-After": "900"}
-        )
 
 
 @router.post("/login", response_model=SessionView)
@@ -133,9 +107,11 @@ def assignable_users(identity: CurrentUser, db: AuthDB):
 
 class ManagedUser(UserView):
     active: bool
+    revision: int
 
 
 class AccountUpdate(BaseModel):
+    expected_revision: int = Field(ge=1)
     model_config = ConfigDict(extra="forbid")
     role: Literal["administrator", "analyst", "viewer"] | None = None
     active: bool | None = None
@@ -150,14 +126,18 @@ def managed_users(identity: CurrentUser, db: AuthDB):
 
 @router.patch("/users/{user_id}", response_model=ManagedUser)
 def update_user(user_id: str, body: AccountUpdate, identity: Administrator, db: AuthDB):
-    if not body.model_fields_set or (body.role is None and body.active is None):
+    if not (body.model_fields_set & {"role", "active"}) or any(
+        getattr(body, field) is None for field in body.model_fields_set & {"role", "active"}
+    ):
         raise HTTPException(422, "Supply role or active")
     security_lock(db)
     recheck_identity(db, identity, {"administrator"})
-    target = db.get(User, user_id, with_for_update=True)
+    target = db.get(User, user_id, with_for_update=True, populate_existing=True)
     if not target:
         raise HTTPException(404, "Account not found")
-    before = {"role": target.role, "active": target.active}
+    if target.revision != body.expected_revision:
+        raise HTTPException(409, "Account changed; reload its latest revision")
+    before = {"role": target.role, "active": target.active, "revision": target.revision}
     demoting = body.role is not None and body.role != "administrator"
     if target.active and target.role == "administrator" and (demoting or body.active is False):
         count = db.scalar(
@@ -169,7 +149,8 @@ def update_user(user_id: str, body: AccountUpdate, identity: Administrator, db: 
         target.role = body.role
     if body.active is not None:
         target.active = body.active
-    after = {"role": target.role, "active": target.active}
+    target.revision += 1
+    after = {"role": target.role, "active": target.active, "revision": target.revision}
     db.execute(delete(AuthSession).where(AuthSession.user_id == target.id))
     record_event(
         db,
