@@ -1,4 +1,4 @@
-"""Atomic evaluations and local-only investigation. Network I/O is never performed here."""
+"""Atomic evaluations and audited CLI or authenticated investigation."""
 
 import logging
 import uuid
@@ -273,36 +273,112 @@ def investigate(
         raise ValueError("assignee_too_long")
     with Session(engine) as db, db.begin():
         lock(db)
-        alert = db.get(Alert, alert_id, with_for_update=True)
-        if not alert:
-            raise LookupError("alert_not_found")
-        if alert.revision != expected_revision:
-            raise ValueError("stale_revision_inspect_alert_again")
-        previous = alert.status
-        if status is not None and status not in TRANSITIONS[previous]:
-            raise ValueError("invalid_alert_transition")
-        if status:
-            alert.status = status
-            alert.resolution = note.strip() if status == "resolved" else None
-        if assignee is not None:
-            alert.assigned_to = assignee.strip() or None
-        alert.revision += 1
-        alert.updated_at = now()
-        db.add(
-            AuditEvent(
-                id=str(uuid.uuid4()),
-                alert_id=alert.id,
-                revision=alert.revision,
-                actor=actor.strip(),
-                action="transition" if status else "note",
-                from_status=previous,
-                to_status=alert.status,
-                assigned_to=alert.assigned_to,
-                note=note.strip(),
-                created_at=now(),
-            )
+        return apply_investigation(
+            db,
+            alert_id,
+            actor=actor,
+            note=note,
+            expected_revision=expected_revision,
+            status=status,
+            assignee=assignee,
+            before_commit=before_commit,
         )
-        db.flush()
-        if before_commit:
-            before_commit()
-        return dict(alert_id=alert.id, status=alert.status, revision=alert.revision)
+
+
+def apply_investigation(
+    db,
+    alert_id,
+    *,
+    actor,
+    note,
+    expected_revision,
+    status=None,
+    assignee=None,
+    assigned_user_id=None,
+    actor_user_id=None,
+    before_commit=None,
+):
+    """Apply one revision and its audit event in the caller's locked transaction."""
+    alert = db.get(Alert, alert_id, with_for_update=True, populate_existing=True)
+    if not alert:
+        raise LookupError("alert_not_found")
+    if alert.revision != expected_revision:
+        raise ValueError("stale_revision_inspect_alert_again")
+    previous = alert.status
+    previous_assigned_to = alert.assigned_to
+    previous_assigned_user_id = alert.assigned_user_id
+    if status is not None and status not in TRANSITIONS[previous]:
+        raise ValueError("invalid_alert_transition")
+    if status:
+        alert.status = status
+        alert.resolution = note.strip() if status == "resolved" else None
+    if assignee is not None:
+        alert.assigned_to = assignee.strip() or None
+        alert.assigned_user_id = assigned_user_id
+    alert.revision += 1
+    alert.updated_at = now()
+    db.add(
+        AuditEvent(
+            id=str(uuid.uuid4()),
+            alert_id=alert.id,
+            revision=alert.revision,
+            actor=actor.strip(),
+            actor_user_id=actor_user_id,
+            action="transition" if status else ("assignment" if assignee is not None else "note"),
+            from_status=previous,
+            to_status=alert.status,
+            previous_assigned_to=previous_assigned_to,
+            previous_assigned_user_id=previous_assigned_user_id,
+            assigned_to=alert.assigned_to,
+            assigned_user_id=alert.assigned_user_id,
+            note=note.strip(),
+            created_at=now(),
+        )
+    )
+    db.flush()
+    if before_commit:
+        before_commit()
+    return dict(alert_id=alert.id, status=alert.status, revision=alert.revision)
+
+
+def investigate_authenticated(db, alert_id, identity, action):
+    """Auth and alert writes share one transaction; revoke/demote cannot race the decision."""
+    from fastapi import HTTPException
+    from ..auth.models import User
+    from ..auth.service import security_lock, recheck_identity
+
+    security_lock(db)
+    user = recheck_identity(db, identity, {"analyst", "administrator"})
+    # API sessions are already in a transaction, so the SQLite CLI BEGIN is unnecessary.
+    if db.bind.dialect.name == "postgresql":
+        lock(db)
+    assignee = None
+    assigned_user_id = None
+    if action.assigned_to is not None:
+        if action.assigned_to:
+            assigned = db.get(User, action.assigned_to, populate_existing=True, with_for_update=True)
+            if not assigned or not assigned.active or assigned.role not in {"analyst", "administrator"}:
+                raise HTTPException(422, "Choose an active analyst or administrator")
+            assignee, assigned_user_id = assigned.username, assigned.id
+        else:
+            assignee = ""
+    try:
+        result = apply_investigation(
+            db,
+            alert_id,
+            actor=user.username,
+            actor_user_id=user.id,
+            note=action.note,
+            expected_revision=action.expected_revision,
+            status=action.status,
+            assignee=assignee,
+            assigned_user_id=assigned_user_id,
+        )
+    except LookupError:
+        raise HTTPException(404, "Incident not found") from None
+    except ValueError as exc:
+        if str(exc) == "stale_revision_inspect_alert_again":
+            raise HTTPException(409, "Incident changed; reload its latest revision") from None
+        raise HTTPException(422, "Invalid incident status transition") from None
+    db.commit()
+    return result

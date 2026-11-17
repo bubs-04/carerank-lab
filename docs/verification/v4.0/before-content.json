@@ -1,0 +1,201 @@
+{
+  "pipeline_runs": {
+    "columns": [
+      "id",
+      "started_at",
+      "finished_at",
+      "status",
+      "seed",
+      "providers",
+      "encounters",
+      "seconds",
+      "error"
+    ],
+    "digest": "beb36961ef02ea20bc216021d445d4bf",
+    "count": 1
+  },
+  "providers": {
+    "columns": [
+      "id",
+      "name",
+      "specialty",
+      "location"
+    ],
+    "digest": "da4965916c8be5926e1890a44bebc786",
+    "count": 1000
+  },
+  "encounters": {
+    "columns": [
+      "id",
+      "provider_id",
+      "procedure",
+      "risk",
+      "cost",
+      "outcome"
+    ],
+    "digest": "f91b90337d0ac047ddf5028e6b122b61",
+    "count": 100000
+  },
+  "scores": {
+    "columns": [
+      "provider_id",
+      "encounters",
+      "observed",
+      "avg_cost",
+      "quality",
+      "rank",
+      "components"
+    ],
+    "digest": "f66ebf4a37828f26a7bef3df5ea2fc6f",
+    "count": 1000
+  },
+  "registry_sources": {
+    "columns": [
+      "id",
+      "dataset_id",
+      "mode",
+      "title",
+      "url"
+    ],
+    "digest": "0e81d6bedb7d14359b658c52336576d7",
+    "count": 1
+  },
+  "registry_snapshots": {
+    "columns": [
+      "id",
+      "source_id",
+      "created_at",
+      "checksum",
+      "scope_hash",
+      "scope",
+      "provenance",
+      "policy",
+      "received",
+      "valid",
+      "rejected",
+      "warnings",
+      "finding_counts"
+    ],
+    "digest": "ff1697dffd3a77d9d650a890091e4721",
+    "count": 2
+  },
+  "registry_runs": {
+    "columns": [
+      "id",
+      "source_id",
+      "snapshot_id",
+      "started_at",
+      "finished_at",
+      "seconds",
+      "status",
+      "requested",
+      "received",
+      "valid",
+      "rejected",
+      "warnings",
+      "error_code",
+      "provenance"
+    ],
+    "digest": "5b436da5f4325cd849c74ced3602142f",
+    "count": 2
+  },
+  "registry_records": {
+    "columns": [
+      "snapshot_id",
+      "row_number",
+      "record_key",
+      "accepted_key",
+      "accepted",
+      "content_hash",
+      "data"
+    ],
+    "digest": "c1644947df2f03fa37f67dd981701e0f",
+    "count": 10
+  },
+  "registry_changes": {
+    "columns": [
+      "old_id",
+      "new_id",
+      "created_at",
+      "summary"
+    ],
+    "digest": "330be10a6acc7a76ec5c2acebe888adf",
+    "count": 1
+  },
+  "registry_findings": {
+    "columns": [
+      "id",
+      "run_id",
+      "row_number",
+      "severity",
+      "code",
+      "field"
+    ],
+    "digest": "9fbc497e3ddad1ec67b125c0849a8ed5",
+    "count": 8
+  },
+  "monitor_evaluations": {
+    "columns": [
+      "id",
+      "run_id",
+      "snapshot_id",
+      "baseline_run_id",
+      "rule_version_id",
+      "profile",
+      "observed",
+      "status",
+      "explanation",
+      "evidence",
+      "created_at"
+    ],
+    "digest": "720ac66adbd7551b0f30eb56587e067c",
+    "count": 24
+  },
+  "monitor_rules": {
+    "columns": [
+      "id",
+      "rule_id",
+      "version",
+      "description",
+      "severity",
+      "threshold",
+      "unit",
+      "created_at"
+    ],
+    "digest": "77a36c061bfe59850429384d08f0abb9",
+    "count": 12
+  },
+  "monitor_alerts": {
+    "columns": [
+      "id",
+      "evaluation_id",
+      "run_id",
+      "rule_version_id",
+      "severity",
+      "status",
+      "assigned_to",
+      "resolution",
+      "revision",
+      "created_at",
+      "updated_at"
+    ],
+    "digest": "4ca4bf1dc569951bd03e086375a40caa",
+    "count": 8
+  },
+  "monitor_events": {
+    "columns": [
+      "id",
+      "alert_id",
+      "revision",
+      "actor",
+      "action",
+      "from_status",
+      "to_status",
+      "assigned_to",
+      "note",
+      "created_at"
+    ],
+    "digest": "281b5541db15b78612bec2da9383c438",
+    "count": 8
+  }
+}

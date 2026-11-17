@@ -277,7 +277,7 @@ def test_release_changed_during_download_rejected():
         CMSConnector(IngestionSettings(max_rows=5), httpx.MockTransport(handler)).fetch()
 
 
-def test_readonly_api_and_pagination(engine):
+def test_readonly_api_and_pagination(engine, authenticated_reader):
     run = ingest(engine, batch, "fixture", 5)
 
     def session():
@@ -298,8 +298,11 @@ def test_readonly_api_and_pagination(engine):
             assert client.get("/api/dataops/runs/missing/findings").status_code == 404
             paths = client.get("/openapi.json").json()["paths"]
             assert all(
-                set(methods) == {"get"} for path, methods in paths.items() if path.startswith("/api/dataops")
+                set(methods) == {"get"}
+                for path, methods in paths.items()
+                if path.startswith("/api/dataops") and not path.endswith("/actions")
             )
+            assert set(paths["/api/dataops/monitoring/alerts/{alert_id}/actions"]) == {"post"}
     finally:
         app.dependency_overrides.clear()
 

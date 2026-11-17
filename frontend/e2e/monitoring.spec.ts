@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./authenticated";
 test("monitoring evidence, safe read-only investigation, refresh and mobile navigation", async ({
   page,
   request,

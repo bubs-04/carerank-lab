@@ -1,8 +1,8 @@
-"""Typed read-only API contracts; arbitrary evidence contains counts/IDs, not patient records."""
+"""Typed monitoring reads and constrained analyst decisions; no patient records."""
 
 from datetime import datetime
 from typing import Generic, Literal, TypeVar
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from ..ingestion.schemas import RunView
 
 ResultStatus = Literal["passed", "failed", "not_evaluable"]
@@ -45,6 +45,7 @@ class AlertView(ORMView):
     severity: str
     status: AlertStatus
     assigned_to: str | None
+    assigned_user_id: str | None
     resolution: str | None
     revision: int
     created_at: datetime
@@ -56,10 +57,14 @@ class EventView(ORMView):
     alert_id: str
     revision: int
     actor: str
+    actor_user_id: str | None
+    previous_assigned_to: str | None
+    previous_assigned_user_id: str | None
     action: str
     from_status: str | None
     to_status: str
     assigned_to: str | None
+    assigned_user_id: str | None
     note: str
     created_at: datetime
 
@@ -107,3 +112,11 @@ class Trend(BaseModel):
     policy: str | None
     points: list[TrendPoint]
     caveat: str
+
+
+class IncidentAction(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    expected_revision: int = Field(ge=1)
+    note: str = Field(min_length=1, max_length=2000)
+    status: AlertStatus | None = None
+    assigned_to: str | None = Field(default=None, max_length=36)

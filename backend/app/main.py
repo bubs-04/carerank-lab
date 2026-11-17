@@ -2,6 +2,9 @@ import logging
 from typing import Annotated, Literal
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
+from .auth.api import router as auth_router
+from .auth.dependencies import require_user
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -13,7 +16,7 @@ from .schemas import Analytics, ProviderPage, ProviderView, RunView, QualityCost
 
 app = FastAPI(
     title="CareRank Lab",
-    version="3.1.0",
+    version="4.0.0",
     description="Synthetic educational intelligence. Not clinical advice.",
 )
 DB = Annotated[Session, Depends(get_session)]
@@ -34,7 +37,7 @@ def health(db: DB) -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.get("/api/providers", response_model=ProviderPage)
+@app.get("/api/providers", dependencies=[Depends(require_user)], response_model=ProviderPage)
 def providers(
     db: DB,
     q: str = Query("", max_length=100),
@@ -49,7 +52,7 @@ def providers(
     return repository.search(db, q, specialty, location, min_quality, max_cost, page, page_size, sort)
 
 
-@app.get("/api/compare", response_model=list[ProviderView])
+@app.get("/api/compare", dependencies=[Depends(require_user)], response_model=list[ProviderView])
 def compare(db: DB, ids: Annotated[list[int], Query(min_length=2, max_length=3)]):
     if len(set(ids)) != len(ids):
         raise HTTPException(422, "Select distinct providers")
@@ -61,7 +64,7 @@ def compare(db: DB, ids: Annotated[list[int], Query(min_length=2, max_length=3)]
     return rows
 
 
-@app.get("/api/providers/{provider_id}", response_model=ProviderView)
+@app.get("/api/providers/{provider_id}", dependencies=[Depends(require_user)], response_model=ProviderView)
 def detail(provider_id: int, db: DB):
     row = repository.get_provider(db, provider_id)
     if row is None:
@@ -69,17 +72,17 @@ def detail(provider_id: int, db: DB):
     return row
 
 
-@app.get("/api/analytics", response_model=Analytics)
+@app.get("/api/analytics", dependencies=[Depends(require_user)], response_model=Analytics)
 def analytics(db: DB):
     return repository.analytics(db)
 
 
-@app.get("/api/pipeline", response_model=list[RunView])
+@app.get("/api/pipeline", dependencies=[Depends(require_user)], response_model=list[RunView])
 def pipeline_status(db: DB):
     return repository.runs(db)
 
 
-@app.get("/api/analytics/quality-cost", response_model=QualityCost)
+@app.get("/api/analytics/quality-cost", dependencies=[Depends(require_user)], response_model=QualityCost)
 def quality_cost(db: DB, specialty: str = Query("Cardiology", min_length=1, max_length=50)):
     """All scored providers in one specialty, raw mean costs and SQL cohort means.
 
@@ -89,7 +92,7 @@ def quality_cost(db: DB, specialty: str = Query("Cardiology", min_length=1, max_
     return cohort_analytics.quality_cost(db, specialty)
 
 
-@app.get("/api/analytics/evidence", response_model=Evidence)
+@app.get("/api/analytics/evidence", dependencies=[Depends(require_user)], response_model=Evidence)
 def evidence(db: DB):
     """Disjoint eligibility counts and exact completeness bins across all providers.
 
@@ -99,6 +102,32 @@ def evidence(db: DB):
     return cohort_analytics.evidence(db)
 
 
-app.include_router(dataops_router)
+app.include_router(auth_router)
 
-app.include_router(monitoring_router)
+app.include_router(dataops_router, dependencies=[Depends(require_user)])
+
+app.include_router(monitoring_router, dependencies=[Depends(require_user)])
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error(request: Request, error: RequestValidationError):
+    # FastAPI's default includes rejected inputs, which can contain passwords.
+    return JSONResponse(
+        status_code=422,
+        content={
+            "detail": [{"loc": list(e["loc"]), "msg": e["msg"], "type": e["type"]} for e in error.errors()]
+        },
+    )
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    if request.url.path.startswith("/api/"):
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
+    return response

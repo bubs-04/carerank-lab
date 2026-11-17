@@ -12,7 +12,7 @@ from app.scoring import score_provider
 
 
 @pytest.fixture
-def client():
+def client(authenticated_reader):
     engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
     Base.metadata.create_all(engine)
     with Session(engine) as db:

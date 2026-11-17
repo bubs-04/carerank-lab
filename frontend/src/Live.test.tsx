@@ -7,17 +7,47 @@ import {
 } from "@testing-library/react";
 import { test, expect, vi } from "vitest";
 import App from "./App";
+import { AuthProvider } from "./Auth";
 const live = process.env.LIVE_URL;
 test.skipIf(!live)(
   "live React to Vite proxy to FastAPI to PostgreSQL workflow",
   async () => {
     const actualFetch = globalThis.fetch;
-    vi.stubGlobal("fetch", (url: string, options: RequestInit) =>
-      actualFetch(live + url, options),
-    );
+    const username = process.env.E2E_VIEWER_USERNAME;
+    const password = process.env.E2E_VIEWER_PASSWORD;
+    if (!username || !password)
+      throw new Error(
+        "Provision E2E viewer credentials before running LIVE_URL tests",
+      );
+    const origin = new URL(live!).origin;
+    const login = await actualFetch(`${live}/api/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Origin: origin },
+      body: JSON.stringify({ username, password }),
+    });
+    expect(login.status).toBe(200);
+    const session = await login.json();
+    const cookie = login.headers.get("set-cookie")?.split(";")[0];
+    expect(cookie).toMatch(/^carerank_session=/);
+    vi.stubGlobal("fetch", (url: string, options?: RequestInit) => {
+      const headers = new Headers(options?.headers);
+      headers.set("Cookie", cookie!);
+      headers.set("Origin", origin);
+      return actualFetch(live + url, { ...options, headers });
+    });
     try {
-      render(<App />);
-      await screen.findByText("Provider intelligence, explained.");
+      render(
+        <AuthProvider>
+          <App />
+        </AuthProvider>,
+      );
+      // Real session restoration and the subsequent analytics request are two
+      // network round trips; retain the content assertion with a bounded wait.
+      await screen.findByText(
+        "Provider intelligence, explained.",
+        {},
+        { timeout: 10000 },
+      );
       expect(screen.getByText("100,000")).toBeInTheDocument();
       fireEvent.click(
         screen.getByRole("button", { name: "Explore providers" }),
@@ -67,6 +97,15 @@ test.skipIf(!live)(
     } finally {
       cleanup();
       vi.unstubAllGlobals();
+      const logout = await actualFetch(`${live}/api/auth/logout`, {
+        method: "POST",
+        headers: {
+          Cookie: cookie!,
+          Origin: origin,
+          "X-CSRF-Token": session.csrf_token,
+        },
+      });
+      expect(logout.status).toBe(204);
     }
   },
   20000,

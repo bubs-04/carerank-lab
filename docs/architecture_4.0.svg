@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="680" viewBox="0 0 1100 680" role="img" aria-labelledby="title desc">
+  <title id="title">CareRank 4.0 authenticated analyst operations</title>
+  <desc id="desc">A browser passes through a same-origin proxy to authentication and authorization. Reads and authenticated decisions use PostgreSQL. Operator commands use separate credentials. Existing history is retained.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#236c68"/></marker>
+    <style>text{font-family:Arial,sans-serif;fill:#173b40}.title{font-size:29px;font-weight:bold}.label{font-size:20px;font-weight:bold}.body{font-size:16px}.small{font-size:14px}.box{fill:#fff;stroke:#b7d0cd;stroke-width:2}.flow{fill:none;stroke:#236c68;stroke-width:3;marker-end:url(#arrow)}</style>
+  </defs>
+  <rect width="1100" height="680" fill="#f1f7f6"/>
+  <text x="40" y="48" class="title">CareRank 4.0 · Identity, decisions, preserved evidence</text>
+  <text x="40" y="77" class="body">Backend-enforced roles · server sessions · transactional audit</text>
+  <rect x="35" y="110" width="1030" height="395" rx="18" fill="#e4f0ee" stroke="#9dbdb7" stroke-dasharray="7 5"/>
+  <text x="55" y="138" class="small">APPLICATION TRUST BOUNDARY</text>
+  <rect x="55" y="160" width="220" height="105" rx="12" class="box"/>
+  <text x="75" y="192" class="label">React workspace</text><text x="75" y="220" class="body">Sign-in · queue · timeline</text><text x="75" y="245" class="small">Browser input is untrusted</text>
+  <rect x="320" y="160" width="220" height="105" rx="12" class="box"/>
+  <text x="340" y="192" class="label">Same-origin proxy</text><text x="340" y="220" class="body">Nginx / development Vite</text><text x="340" y="245" class="small">TLS required for shared use</text>
+  <rect x="585" y="160" width="450" height="105" rx="12" class="box"/>
+  <text x="605" y="192" class="label">FastAPI authentication</text><text x="605" y="220" class="body">Opaque HttpOnly cookie → hashed server session</text><text x="605" y="245" class="small">Active account · absolute expiry · revocation · login limits</text>
+  <path d="M275 210 H315" class="flow"/><path d="M540 210 H580" class="flow"/>
+  <rect x="55" y="330" width="310" height="135" rx="12" class="box"/>
+  <text x="75" y="363" class="label">Protected evidence reads</text><text x="75" y="393" class="body">Viewer · Analyst · Administrator</text><text x="75" y="420" class="small">Ranking, snapshots, rules and history</text><text x="75" y="444" class="small">No clinical ratings from registry identities</text>
+  <rect x="415" y="330" width="620" height="135" rx="12" class="box"/>
+  <text x="435" y="363" class="label">Authorized mutation transaction</text><text x="435" y="393" class="body">Exact Origin + CSRF + role → lock → recheck session and revision</text><text x="435" y="420" class="small">Analyst / Administrator: incident decisions and valid-user assignments</text><text x="435" y="444" class="small">Administrator: account roles / activation; append-only security events</text>
+  <path d="M785 265 V300 H210 V325" class="flow"/><path d="M810 265 V325" class="flow"/>
+  <rect x="415" y="545" width="620" height="100" rx="12" fill="#173b40"/>
+  <text x="438" y="578" class="label" style="fill:white">PostgreSQL 16</text><text x="438" y="606" class="body" style="fill:#d9efea">Preserved snapshots / alerts · authenticated audit · restricted API grants</text><text x="438" y="630" class="small" style="fill:#d9efea">Migration 004 adds identity and session tables without rewriting old events</text>
+  <path d="M725 465 V540" class="flow"/><path d="M210 465 V520 H505 V540" class="flow"/>
+  <rect x="55" y="545" width="310" height="100" rx="12" class="box"/>
+  <text x="75" y="578" class="label">Operator CLI</text><text x="75" y="605" class="body">Migration · provisioning · ingestion</text><text x="75" y="630" class="small">Separate privileged credentials</text><path d="M365 595 H410" class="flow"/>
+</svg>

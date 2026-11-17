@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./authenticated";
 test("live data supports search, pagination, details, and comparison", async ({
   page,
   request,
