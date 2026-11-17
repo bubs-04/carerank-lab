@@ -1,0 +1,78 @@
+# CareRank 4.0 security and threat model
+
+CareRank 4.0 implements application authentication and analyst authorization for an isolated educational data operations workspace. These controls do not establish regulatory compliance or make the application suitable for patient data or clinical decisions. Current verification evidence is in [VERIFICATION_4.0.md](VERIFICATION_4.0.md).
+
+## Assets, actors and trust boundaries
+
+Protected assets include account password hashes, bearer sessions, registry snapshots and provenance, synthetic ranking data, incident state and attribution, and audit history. Public CMS records are public at their source; access to the workspace's combined history is still authenticated.
+
+The browser, request headers and submitted actor/role values are untrusted. React is a convenience layer, not an authorization boundary. FastAPI validates every protected request. The database trusts the API's restricted runtime identity; migration and operator credentials have broader authority and must be held separately. Database administrators, host administrators and development CLI operators remain privileged actors.
+
+| Role | Permitted web operations |
+|---|---|
+| Viewer | Read ranking, analytics, registry evidence, monitoring incidents and audit history |
+| Analyst | Viewer operations plus incident notes, acknowledgement, investigation, assignment, resolution and reopening |
+| Administrator | Analyst operations plus account role/activation management and security-event inspection |
+
+External ingestion, monitoring backfill, migration, provisioning and synthetic dataset replacement remain operator CLI tasks. Possession of a web Administrator account does not grant a browser endpoint for these tasks. There is no public registration endpoint.
+
+## Implemented controls
+
+| Threat | Control | Residual boundary |
+|---|---|---|
+| Password disclosure | Per-password random salt; standard-library scrypt at N=32768, r=8, p=3; 12–256 character provisioning policy; constant-time hash comparison | No MFA, SSO, breached-password service, recovery or password rotation UI; choose unique development passwords |
+| Session theft or fixation | Fresh 256-bit opaque session tokens; SHA-256 digest at rest; HttpOnly, SameSite=Strict, Secure-by-default cookie; absolute expiry (8 hours by default, configurable 60–86400 seconds); login replaces the presented prior session | Compromised browser/host or active XSS can act with a user's session; no device-bound sessions |
+| Continued use after logout or account change | Logout deletes the session; inactive accounts fail authentication; role/activation changes revoke affected sessions; mutation transactions recheck identity/session and role | A completed request cannot be revoked retroactively |
+| CSRF and login CSRF | Exact configured `Origin` check for login and mutations; reject cross-site Fetch Metadata; session-bound `X-CSRF-Token` required for authenticated writes; strict cookie SameSite | Origin configuration and trusted reverse-proxy behavior are deployment responsibilities |
+| Forged administrator or analyst identity | Backend dependencies enforce roles; actor identity is loaded from the active session; action schema rejects extra fields | Database/host operators can bypass application authorization |
+| Brute-force login and account enumeration | PostgreSQL-backed atomic windows across workers: 10 attempts per normalized username and 30 per trusted client source per 15 minutes; equal-cost verification for unknown users; generic credential error | Limits include successful logins; clients sharing a real NAT address still share a source budget; distributed attacks and volumetric DoS require gateway controls |
+| Proxy spoofing or proxy-wide login denial | Nginx/Vite replace the dedicated client-address header; the API accepts it only from explicit immediate trusted proxy addresses and ignores caller forwarding headers elsewhere | Host/Docker operators can cross this trust boundary; a shared deployment must define its real proxy topology |
+| Login-window storage exhaustion | Source limit checked before username lookup/allocation; serialized 10,000-bucket allocation ceiling; indexed expiry cleanup of at most 100 rows per allocation attempt | Capacity rejects new buckets with 429 instead of evicting live protections; distributed capacity exhaustion remains an availability risk requiring monitoring/gateway controls |
+| Overwritten investigation or stale privileges | Required alert/account revision, transaction/advisory locks, current role/session recheck, and atomic state/event/session-revocation commit; account UI sends intentional changes only and reloads conflicts | Locks serialize short write operations; throughput at production scale is unverified; operators who write account rows directly must preserve revision semantics |
+| Audit tampering | Incident and security audit tables reject UPDATE/DELETE with database triggers; runtime grants allow SELECT/INSERT only; actor IDs, prior/new state, assignment and decisions retained | Schema owners can disable triggers or alter schema; off-host tamper-evident retention is not implemented |
+| Injection and sensitive error output | ORM-bound queries, bounded typed request fields, allowed lifecycle states/roles, sanitized database and validation errors; no password or raw session in audit | Decision notes are operational content and visible to all workspace readers; operators must not enter secrets or patient information |
+| Browser data leakage | API `Cache-Control: no-store`, nosniff, frame denial, no-referrer, restricted Permissions-Policy; Nginx self-origin Content Security Policy; React escapes text | No independent penetration/accessibility audit; Vite is a development server, not a production boundary |
+| Destructive startup | Bootstrap checks providers, encounters, scores and pipeline history and seeds only when all are empty; startup lock is distinct from the pipeline transaction lock | Explicit pipeline/benchmark tools still replace synthetic data; do not run them on retained data |
+
+Unauthenticated `/api/health` returns service health only. OpenAPI/docs are public contract metadata. All ranking, analytics, registry and monitoring data endpoints require authentication. Login error handling excludes rejected credential values from validation responses. API bodies, passwords, raw tokens and decision notes are not logged by application security events.
+
+The API container runs as a non-root user and Uvicorn keeps `--no-proxy-headers`. Client identity for login limits follows a separate, narrow trust rule:
+
+- Compose connects Nginx (`172.30.84.3`) and the API (a dynamically assigned address) on an internal `172.30.84.0/24` network. Only the web port is published on loopback. `AUTH_TRUSTED_PROXIES=172.30.84.3/32` trusts that immediate peer, not the whole subnet.
+- Nginx overwrites `X-CareRank-Client-IP` with `$remote_addr` and strips `X-Forwarded-For`, `X-Real-IP` and `Forwarded`. Vite performs the equivalent replacement from the incoming socket address.
+- The API uses the socket peer for an untrusted source, ignoring all supplied forwarding headers. A trusted proxy must supply exactly one valid IP address in the dedicated header; missing/malformed values return 400. Header chains and scoped addresses are not accepted. IPv4-mapped IPv6 addresses normalize to IPv4 so equivalent addresses cannot select separate buckets.
+- Native/cloud Vite development explicitly trusts loopback only. Other local processes are privileged actors in that development boundary. A shared deployment must use private API connectivity and its own exact proxy addresses; it must not reuse a broad trust list or expose the API directly to untrusted peers.
+
+A blocked source performs one indexed source-bucket read before returning 429: it does not look up arbitrary usernames, count rows or run cleanup. Allocation attempts clean at most 100 expired buckets through `(window_start, key)`, then check capacity while holding the shared PostgreSQL advisory lock. At capacity, the limiter refuses new buckets; it never removes live limits to admit a new source. A pre-existing table above the ceiling cannot grow through this path and shrinks through bounded expiry cleanup; migration 005 does not erase live security windows. Successful sign-ins consume budgets too. Account-level limits remain shared across sources, preventing a change of source from resetting a username budget. The limiter shares a global security-write lock with account/incident mutations; lock contention and distributed exhaustion of the fail-closed capacity remain availability risks. Production gateway limits and load testing are still required.
+
+## Configuration and account lifecycle
+
+No accounts or default passwords ship with the application. `python -m app.auth create-user` requires `APP_ENV=development`; use the interactive prompt or `--password-stdin`. Never pass passwords as command arguments or store them in source, screenshots, test logs, PR text or browser storage. The CLI fails on an existing username rather than silently resetting credentials.
+
+`AUTH_COOKIE_SECURE=true` is the default. Setting it false is rejected outside explicit development mode. For local HTTP only, use `APP_ENV=development`, `AUTH_COOKIE_SECURE=false`, and an exact `AUTH_ALLOWED_ORIGINS` value such as `http://127.0.0.1:5173`. Different hostnames or ports are different origins. Shared deployments require HTTPS and an explicitly configured HTTPS origin. Secure cookies alone do not configure TLS.
+
+Administrators can change roles or deactivate accounts through the Administration workspace and protected account API. Each PATCH requires `expected_revision` and at least one intentional role/activation change. After taking the shared write lock, the API rechecks the acting identity, locks the target account, and compares its durable revision. A stale request returns 409 without changing state, sessions or audit history. A successful update increments the revision and records prior/new role, activation and revision. The last active administrator cannot be demoted/deactivated. The account update, security event and affected-session invalidation commit together; failed audit insertion rolls them all back. React sends changed fields only and reloads a conflict for deliberate review; it does not automatically replay stale input. Deactivation preserves assignment and audit identity references; it does not erase history. Historical CLI actions retain self-reported labels and no authenticated actor ID. The UI distinguishes those labels from authenticated accounts.
+
+## Restricted database runtime
+
+The Compose stack separates `carerank` migration/operator credentials from the restricted `carerank_api` runtime login. `scripts/setup_env.py` creates distinct random `POSTGRES_PASSWORD` and `API_DATABASE_PASSWORD` values in ignored owner-only `.env`, appending missing keys without replacing existing settings. A completed `runtime` operator service provisions the restricted role after migration/seed. The API receives only its runtime connection; it cannot migrate, ingest, provision accounts or replace synthetic data. Use the `seed` service with an explicit operator command for those tasks, as documented in the README.
+
+`python -m app.runtime_role` accepts owner `DATABASE_URL` and restricted `RUNTIME_DATABASE_URL` through the operator environment. It requires the same PostgreSQL endpoint/database and a distinct login/password; it rejects an existing privileged, owning or inherited role. It serializes provisioning, creates/updates the runtime login, revokes broad table/sequence/schema grants and applies explicit permissions. Password-bearing DDL errors are suppressed from command output. The companion [runtime-grants.sql](runtime-grants.sql) remains available for an administrator managing the login separately.
+
+The role permits SELECT on domain tables; narrowly scoped UPDATE on alert state and account role/activation/revision; SELECT/INSERT on append-only audit tables; and session/rate-limit maintenance. It grants no table ownership, schema creation, synthetic/registry writes, audit UPDATE/DELETE, password-hash modification, account creation or monitoring evaluation. PostgreSQL `SELECT ... FOR UPDATE` requires UPDATE permission; mutation columns have the corresponding grants. Do not add role membership or broader grants after provisioning without review.
+
+The CI browser API is separately provisioned against `carerank_test` with its own runtime password. Migration/reset tests retain isolated test-owner credentials because they intentionally administer that disposable schema. The cloud helper likewise provisions a runtime login and removes owner/test credential variables from the API and frontend child environments; its operator session file retains owner credentials for explicit administration. The helper's protected readiness probe now requires anonymous 401.
+
+This is practical development/CI separation, not a production credential-management system. Before shared deployment, put owner and runtime secrets under separate delivery/rotation policies in a secret manager, run privileged tasks outside the API workload, restrict database/network access, reapply/review grants after schema changes, and verify the actual deployed permissions. A Docker/host administrator can inspect local service secrets and remains trusted. Privileged operators can disable append-only triggers or alter data; external tamper-evident audit retention is not implemented.
+
+## Operational limits and deployment gate
+
+This release has no multi-tenant isolation, enterprise identity provider integration, MFA, production account recovery, external audit sink, security alert delivery, scheduled ingestion, session-device management or production load certification. Audit history grows with use and requires an explicit retention policy. Login-window allocation is capped and expiry cleanup is bounded; expired sessions are cleaned during login. Session-cleanup cost and long-term audit volume still require operational monitoring. Notes and usernames remain potentially sensitive operational data even though no patient records are ingested.
+
+Before a shared deployment, design identity provisioning/recovery, terminate TLS at a managed trusted proxy with an explicitly verified address/header boundary, deliver separate database credentials through deployment secret infrastructure, configure backup/restore and retention, monitor login failures/lock waits/capacity, test production rate-limit capacity, and obtain a fresh independent security review of the corrected revision. These are documented unverified requirements, not claims that the present development deployment satisfies them. No public deployment or cloud expenditure is part of this delivery.
+
+## Verification scope
+
+Negative tests should exercise unauthenticated reads, every role boundary, CSRF/origin failures, expired/revoked sessions, inactive accounts, stale revisions, invalid assignments and forged identity fields. PostgreSQL tests additionally cover concurrency, audit immutability, migration preservation and restricted runtime permissions. Browser tests use `carerank_test` for lifecycle writes; destructive tests must never use `carerank`. Actual executed results, failures/fixes and remaining gaps are recorded separately in [VERIFICATION_4.0.md](VERIFICATION_4.0.md).
+
+The three reviewed defects, exact corrections and regression mapping are recorded in [SECURITY_REVIEW_4.0.md](SECURITY_REVIEW_4.0.md). That document describes implemented fixes; executed pass/fail evidence remains in the verification report.

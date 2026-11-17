@@ -1,0 +1,1 @@
+Final verification: all original data in all 14 tables preserved; migration 004.

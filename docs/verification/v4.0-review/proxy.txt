@@ -1,0 +1,2 @@
+Blocked source cannot bypass its limit with forged forwarding headers
+Independent client can authenticate through the same Nginx proxy

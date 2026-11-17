@@ -683,7 +683,7 @@ export default function DataOps() {
     <>
       <div className="heading">
         <div>
-          <span className="eyebrow">PUBLIC REGISTRY · READ ONLY</span>
+          <span className="eyebrow">PUBLIC REGISTRY · OPERATIONS</span>
           <h1>Data operations</h1>
           <p>What arrived, what changed, and whether processing succeeded.</p>
         </div>

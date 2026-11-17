@@ -1,0 +1,8 @@
+Least-privilege role: carerank_api_test
+Denied: DELETE FROM registry_snapshots
+Denied: DELETE FROM providers
+Denied: UPDATE monitor_events SET note=note
+Denied: DELETE FROM auth_events
+Denied: CREATE TABLE forbidden_test(id int)
+Denied: UPDATE auth_users SET password_hash=password_hash
+Domain writes, audit rewrites, schema DDL and password modification blocked by PostgreSQL grants.

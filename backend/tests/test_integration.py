@@ -5,6 +5,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, select, func, text
 from sqlalchemy.orm import Session
+from sqlalchemy.engine import make_url
 from alembic.config import Config
 from alembic import command
 from app.main import app
@@ -20,6 +21,9 @@ def engine():
     url = os.environ.get("TEST_DATABASE_URL")
     if not url:
         pytest.skip("Set TEST_DATABASE_URL to a disposable PostgreSQL database")
+    target = make_url(url)
+    if target.get_backend_name() != "postgresql" or target.database != "carerank_test":
+        pytest.fail("Destructive integration tests require PostgreSQL database carerank_test")
     old = os.environ.get("DATABASE_URL")
     os.environ["DATABASE_URL"] = url
     from app.db import get_engine
@@ -40,7 +44,7 @@ def engine():
 
 
 @pytest.fixture
-def client(engine):
+def client(engine, authenticated_reader):
     def session():
         with Session(engine) as s:
             yield s
@@ -278,7 +282,7 @@ def test_monitoring_postgres_migration_preserves_existing_history(engine):
     before = counts()
     command.downgrade(Config("alembic.ini"), "002")
     assert "monitor_alerts" not in inspect(engine).get_table_names()
-    command.upgrade(Config("alembic.ini"), "003")
+    command.upgrade(Config("alembic.ini"), "head")
     assert before == counts()
 
 

@@ -5,6 +5,10 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    env:
+      APP_ENV: development
+      AUTH_COOKIE_SECURE: 'false'
+      AUTH_ALLOWED_ORIGINS: http://127.0.0.1:8080
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -15,6 +19,9 @@ jobs:
       - run: npm ci
         working-directory: frontend
       - run: make lint && make test-ui
+      - run: npm run build && npm run format:check
+        working-directory: frontend
+      - run: python -m pytest scripts/tests -q
       - run: make up
       - name: Wait for application
         run: |
@@ -24,14 +31,72 @@ jobs:
           done
           docker compose logs
           exit 1
-      - name: Disposable integration database
+      - name: Create disposable database and test credentials
         run: |
           docker compose exec -T db createdb -U carerank carerank_test
-          docker compose run --rm -e TEST_DATABASE_URL="postgresql+psycopg://carerank:$(sed -n 's/^POSTGRES_PASSWORD=//p' .env)@db:5432/carerank_test" api pytest -q
-      - name: Ingest deterministic registry fixtures (no CMS network)
+          python - <<'PY'
+          import os, secrets
+          from pathlib import Path
+          password = next(line.split('=', 1)[1] for line in Path('.env').read_text().splitlines()
+                          if line.startswith('POSTGRES_PASSWORD='))
+          values = {
+              'CARERANK_CI_DATABASE_URL': f'postgresql+psycopg://carerank:{password}@db:5432/carerank_test',
+              'CARERANK_CI_RUNTIME_URL': f'postgresql+psycopg://carerank_api_test:{secrets.token_hex(24)}@db:5432/carerank_test',
+          }
+          for prefix, role in [('E2E', 'analyst'), ('E2E_VIEWER', 'viewer'), ('E2E_ADMIN', 'administrator')]:
+              values[f'{prefix}_USERNAME'] = f'ci-{role}'
+              values[f'{prefix}_PASSWORD'] = secrets.token_urlsafe(32)
+          with open(os.environ['GITHUB_ENV'], 'a') as output:
+              for key, value in values.items():
+                  if key.endswith('PASSWORD') or key.endswith('URL'):
+                      print(f'::add-mask::{value}')
+                  output.write(f'{key}={value}\n')
+          PY
+      - name: Backend PostgreSQL integration and security tests
         run: |
-          docker compose run --rm --no-deps api python -m app.ingestion --fixture tests/fixtures/cms_registry_a.csv --max-rows 5
-          docker compose run --rm --no-deps api python -m app.ingestion --fixture tests/fixtures/cms_registry_b.csv --max-rows 5
+          docker compose run --rm --no-deps -e TEST_DATABASE_URL="$CARERANK_CI_DATABASE_URL" api pytest -q
+      - name: Prepare isolated browser database and development accounts
+        run: |
+          # This reset is explicitly restricted to carerank_test; main is never reset.
+          python - <<'PY'
+          import os
+          from sqlalchemy.engine import make_url
+          assert make_url(os.environ['CARERANK_CI_DATABASE_URL']).database == 'carerank_test'
+          PY
+          docker compose run --rm --no-deps -e DATABASE_URL="$CARERANK_CI_DATABASE_URL" api alembic downgrade base
+          docker compose run --rm --no-deps -e DATABASE_URL="$CARERANK_CI_DATABASE_URL" api alembic upgrade head
+          docker compose run --rm --no-deps -e DATABASE_URL="$CARERANK_CI_DATABASE_URL" api python -m app.bootstrap
+          docker compose run --rm --no-deps -e DATABASE_URL="$CARERANK_CI_DATABASE_URL" api python -m app.ingestion --fixture tests/fixtures/cms_registry_a.csv --max-rows 5
+          docker compose run --rm --no-deps -e DATABASE_URL="$CARERANK_CI_DATABASE_URL" api python -m app.ingestion --fixture tests/fixtures/cms_registry_b.csv --max-rows 5
+          python - <<'PY'
+          import os, subprocess
+          for prefix, role in [('E2E', 'analyst'), ('E2E_VIEWER', 'viewer'), ('E2E_ADMIN', 'administrator')]:
+              subprocess.run(['docker', 'compose', 'run', '--rm', '--no-deps', '-T',
+                              '-e', 'DATABASE_URL=' + os.environ['CARERANK_CI_DATABASE_URL'],
+                              'api', 'python', '-m', 'app.auth', 'create-user',
+                              '--username', os.environ[f'{prefix}_USERNAME'],
+                              '--display-name', 'CI ' + role.title(), '--role', role, '--password-stdin'],
+                             input=os.environ[f'{prefix}_PASSWORD'] + '\n', text=True, check=True)
+          PY
+          docker compose run --rm --no-deps -e DATABASE_URL="$CARERANK_CI_DATABASE_URL" -e RUNTIME_DATABASE_URL="$CARERANK_CI_RUNTIME_URL" api python -m app.runtime_role
+          cat > "$RUNNER_TEMP/carerank-e2e.yaml" <<'YAML'
+          services:
+            api:
+              environment:
+                DATABASE_URL: ${CARERANK_CI_RUNTIME_URL:?Restricted disposable test database login required}
+          YAML
+          docker compose -f compose.yaml -f "$RUNNER_TEMP/carerank-e2e.yaml" up -d --no-deps api
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8080/api/health; then exit 0; fi
+            sleep 2
+          done
+          exit 1
+      - name: Reverse-proxy source isolation and spoof protection
+        run: python scripts/verify_proxy_security.py
+      - name: Live React to PostgreSQL workflow
+        run: npm test
+        working-directory: frontend
+        env: {LIVE_URL: 'http://127.0.0.1:8080'}
       - run: npx playwright install --with-deps chromium
         working-directory: frontend
       - run: npm run e2e
@@ -54,7 +119,11 @@ jobs:
             docs/monitoring.png
             docs/mobile-monitoring.png
             docs/mobile.png
-            frontend/test-results/
+            docs/sign-in-4.0.png
+            docs/analyst-workspace-4.0.png
+            docs/analyst-mobile-4.0.png
+            docs/administration-4.0.png
+            frontend/test-results/**/error-context.md
           if-no-files-found: warn
       - if: always()
         run: docker compose down

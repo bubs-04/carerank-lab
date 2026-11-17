@@ -17,10 +17,19 @@ fi
 if [ ! -e .env ]; then
   command -v openssl >/dev/null 2>&1 || { echo 'openssl is required to generate the local password.' >&2; exit 1; }
   local_password=$(openssl rand -hex 24)
+  api_password=$(openssl rand -hex 24)
   # Restrict permissions from creation and refuse to overwrite a concurrent file.
-  (umask 077; set -C; printf 'POSTGRES_PASSWORD=%s\n' "$local_password" > .env)
-  unset local_password
+  (umask 077; set -C; printf 'POSTGRES_PASSWORD=%s\nAPI_DATABASE_PASSWORD=%s\n' "$local_password" "$api_password" > .env)
+  unset local_password api_password
   echo 'Created local configuration. Keep .env private.'
+fi
+# Existing installations retain the owner password and receive a separate API secret.
+if ! grep -q '^API_DATABASE_PASSWORD=' .env; then
+  command -v openssl >/dev/null 2>&1 || { echo 'openssl is required to generate the API password.' >&2; exit 1; }
+  api_password=$(openssl rand -hex 24)
+  chmod 600 .env
+  printf '\nAPI_DATABASE_PASSWORD=%s\n' "$api_password" >> .env
+  unset api_password
 fi
 "$docker_bin" compose config --quiet
 "$docker_bin" compose up --build -d

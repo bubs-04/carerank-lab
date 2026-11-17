@@ -1,4 +1,4 @@
-"""Every route is GET-only. Operator identities never come from HTTP headers."""
+"""Authenticated monitoring reads and CSRF-protected analyst investigation."""
 
 from collections import Counter
 from typing import Literal
@@ -8,13 +8,14 @@ from sqlalchemy import select, func
 from ..ingestion.api import DB, Page, Size, paged
 from ..ingestion.models import DataSource, IngestionRun, Snapshot
 from ..ingestion.schemas import RunView
+from ..auth.dependencies import AuthDB, CurrentUser, Analyst
 from . import schemas
 from .config import MonitoringSettings
 from .models import RuleVersion, Evaluation, Alert, AuditEvent
 from .rules import CAVEAT, definitions, profile_id
-from .service import SUCCESS
+from .service import SUCCESS, investigate_authenticated
 
-router = APIRouter(prefix="/api/dataops/monitoring", tags=["Read-only reliability monitoring"])
+router = APIRouter(prefix="/api/dataops/monitoring", tags=["Reliability monitoring and investigation"])
 Mode = Literal["cms", "fixture"]
 
 
@@ -150,9 +151,11 @@ def evaluations(
 @router.get("/alerts", response_model=schemas.Page[schemas.AlertView])
 def alerts(
     db: DB,
+    identity: CurrentUser,
     mode: Mode = "cms",
     status: schemas.AlertStatus | None = None,
     severity: Literal["warning", "critical"] | None = None,
+    assigned_to: Literal["me", "unassigned"] | None = None,
     page: Page = 1,
     page_size: Size = 20,
 ):
@@ -166,7 +169,16 @@ def alerts(
         query = query.where(Alert.status == status)
     if severity:
         query = query.where(Alert.severity == severity)
+    if assigned_to == "me":
+        query = query.where(Alert.assigned_user_id == identity.user.id)
+    elif assigned_to == "unassigned":
+        query = query.where(Alert.assigned_to.is_(None), Alert.assigned_user_id.is_(None))
     return paged(db, query.order_by(Alert.created_at.desc(), Alert.id), page, page_size)
+
+
+@router.post("/alerts/{alert_id}/actions")
+def incident_action(alert_id: str, body: schemas.IncidentAction, identity: Analyst, db: AuthDB):
+    return investigate_authenticated(db, alert_id, identity, body)
 
 
 @router.get("/alerts/{alert_id}", response_model=schemas.AlertDetail)

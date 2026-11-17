@@ -1,0 +1,20 @@
+Main PostgreSQL 16 carerank: migration 004 → 005.
+All 18 original tables preserved by row count and SHA-256 of every pre-existing column.
+auth_events: 5 rows preserved
+auth_login_limits: 2 rows preserved
+auth_sessions: 0 rows preserved
+auth_users: 3 rows preserved
+encounters: 100000 rows preserved
+monitor_alerts: 8 rows preserved
+monitor_evaluations: 24 rows preserved
+monitor_events: 8 rows preserved
+monitor_rules: 12 rows preserved
+pipeline_runs: 1 rows preserved
+providers: 1000 rows preserved
+registry_changes: 1 rows preserved
+registry_findings: 8 rows preserved
+registry_records: 10 rows preserved
+registry_runs: 2 rows preserved
+registry_snapshots: 2 rows preserved
+registry_sources: 1 rows preserved
+scores: 1000 rows preserved

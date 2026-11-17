@@ -330,7 +330,7 @@ def test_automatic_evaluation_and_failure_isolation(engine, monkeypatch):
 
 
 @pytest.fixture
-def client(engine, monkeypatch):
+def client(engine, monkeypatch, authenticated_reader):
     monkeypatch.setenv("DQ_ENABLED", "true")
 
     def session():
@@ -399,7 +399,7 @@ def test_migration_audit_immutability_and_registry_preservation(tmp_path, monkey
     from sqlalchemy.exc import DBAPIError
     from app.db import get_engine
 
-    monkeypatch.setenv("DATABASE_URL", "sqlite:///" + str(tmp_path / "migration.sqlite"))
+    monkeypatch.setenv("DATABASE_URL", "sqlite:///" + str(tmp_path / "carerank_test"))
     monkeypatch.setenv("DQ_ENABLED", "false")
     get_engine.cache_clear()
     config = Config("alembic.ini")
@@ -413,7 +413,7 @@ def test_migration_audit_immutability_and_registry_preservation(tmp_path, monkey
                     "INSERT INTO providers (id,name,specialty,location) VALUES (1,'Synthetic sentinel','Cardiology','Boston')"
                 )
             )
-        command.upgrade(config, "003")
+        command.upgrade(config, "head")
         first_alert(engine)
         for operation in ("UPDATE monitor_events SET note='tampered'", "DELETE FROM monitor_events"):
             with pytest.raises(DBAPIError), engine.begin() as db:
@@ -424,7 +424,7 @@ def test_migration_audit_immutability_and_registry_preservation(tmp_path, monkey
             assert db.get(IngestionRun, target).status == "succeeded"
             assert db.scalar(select(func.count()).select_from(SourceRecord)) == 10
             assert db.scalar(text("SELECT count(*) FROM providers")) == 1
-        command.upgrade(config, "003")
+        command.upgrade(config, "head")
         assert evaluate_run(engine, target)["counts"]["not_evaluable"] == 5
     finally:
         get_engine().dispose()

@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useApi } from "./api";
+import { useAuth } from "./Auth";
+import IncidentActions from "./IncidentActions";
 
 type Page<T> = { items: T[]; total: number; page: number; page_size: number };
 type Run = {
@@ -47,6 +49,7 @@ type Alert = {
   severity: string;
   status: string;
   assigned_to: string | null;
+  assigned_user_id?: string | null;
   resolution: string | null;
   revision: number;
   created_at: string;
@@ -55,6 +58,8 @@ type Event = {
   id: string;
   revision: number;
   actor: string;
+  actor_user_id?: string | null;
+  previous_assigned_to?: string | null;
   action: string;
   from_status: string | null;
   to_status: string;
@@ -188,16 +193,22 @@ function Evidence({
 function AlertInvestigation({
   id,
   onInspect,
+  onUpdated,
 }: {
   id: string;
   onInspect: Inspect;
+  onUpdated: () => void;
 }) {
   const [page, setPage] = useState(1);
+  const [refresh, setRefresh] = useState(0);
+  const [notice, setNotice] = useState("");
   const detail = useApi<{ alert: Alert; evaluation: Evaluation }>(
     `${base}/alerts/${encodeURIComponent(id)}`,
+    refresh,
   );
   const events = useApi<Page<Event>>(
     `${base}/alerts/${encodeURIComponent(id)}/events?page=${page}`,
+    refresh,
   );
   if (!detail.data) return <Loading error={detail.error} />;
   const { alert, evaluation } = detail.data;
@@ -209,11 +220,33 @@ function AlertInvestigation({
         to: {alert.assigned_to || "Unassigned"}
       </p>
       {alert.resolution && <p>Resolution: {alert.resolution}</p>}
+      {notice && (
+        <p className="save-notice" role="status">
+          {notice}
+        </p>
+      )}
+      <IncidentActions
+        key={alert.revision}
+        incident={alert}
+        onSaved={() => {
+          setNotice(
+            "Decision saved. The incident and audit history are up to date.",
+          );
+          setPage(1);
+          setRefresh((n) => n + 1);
+          onUpdated();
+        }}
+        onReload={() => {
+          setNotice("");
+          setRefresh((n) => n + 1);
+          onUpdated();
+        }}
+      />
       <Evidence evaluation={evaluation} onInspect={onInspect} />
       <h3>Append-only investigation history</h3>
       <p>
-        Operator names are self-reported by the local CLI. This application has
-        no authenticated user accounts.
+        Web decisions are attributed to the signed-in account. Historical CLI
+        events retain their original operator labels.
       </p>
       {!events.data ? (
         <Loading error={events.error} />
@@ -228,8 +261,14 @@ function AlertInvestigation({
                 </strong>
                 <p>{e.note}</p>
                 <small>
-                  {e.actor} · {new Date(e.created_at).toLocaleString()} ·
-                  Assigned: {e.assigned_to || "Unassigned"}
+                  {e.actor} ·{" "}
+                  {e.actor_user_id
+                    ? "Authenticated account"
+                    : "System / legacy CLI"}{" "}
+                  · {new Date(e.created_at).toLocaleString()} · Assigned:{" "}
+                  {e.assigned_to || "Unassigned"}
+                  {e.previous_assigned_to &&
+                    ` · Previous owner: ${e.previous_assigned_to}`}
                 </small>
               </li>
             ))}
@@ -247,7 +286,8 @@ function AlertInvestigation({
         <pre className="dataops-code">{`docker compose run --rm --no-deps api python -m app.monitoring inspect ${id}\n\ndocker compose run --rm --no-deps api python -m app.monitoring investigate ${id} --actor "YOUR_NAME" --expected-revision ${alert.revision} --note "Describe what you checked"`}</pre>
         <p>
           This command records a note. Add an allowed --status transition to
-          change status. There is no write API.
+          change status. CLI operations require trusted server access; use the
+          authenticated form above for account-attributed decisions.
         </p>
       </details>
     </section>
@@ -364,6 +404,9 @@ export default function Monitoring({
   mode: "cms" | "fixture";
   onInspect: Inspect;
 }) {
+  const auth = useAuth();
+  const [refresh, setRefresh] = useState(0);
+  const [assignment, setAssignment] = useState("");
   const [alertPage, setAlertPage] = useState(1),
     [evalPage, setEvalPage] = useState(1);
   const [status, setStatus] = useState(""),
@@ -372,9 +415,10 @@ export default function Monitoring({
     [runId, setRunId] = useState("");
   const [historical, setHistorical] = useState(false),
     [trendRun, setTrendRun] = useState("");
-  const summary = useApi<Summary>(`${base}/summary?mode=${mode}`);
+  const summary = useApi<Summary>(`${base}/summary?mode=${mode}`, refresh);
   const alerts = useApi<Page<Alert>>(
-    `${base}/alerts?mode=${mode}&page=${alertPage}${status ? `&status=${status}` : ""}${severity ? `&severity=${severity}` : ""}`,
+    `${base}/alerts?mode=${mode}&page=${alertPage}${status ? `&status=${status}` : ""}${severity ? `&severity=${severity}` : ""}${assignment ? `&assigned_to=${assignment}` : ""}`,
+    refresh,
   );
   const evaluations = useApi<Page<Evaluation>>(
     `${base}/evaluations?mode=${mode}&page=${evalPage}&current_only=${!historical}${runId ? `&run_id=${encodeURIComponent(runId)}` : ""}`,
@@ -383,7 +427,9 @@ export default function Monitoring({
   return (
     <div className="monitoring">
       <section className="panel">
-        <span className="eyebrow">REGISTRY RELIABILITY · READ ONLY</span>
+        <span className="eyebrow">
+          REGISTRY RELIABILITY · ANALYST WORKSPACE
+        </span>
         <h2>Data quality monitoring</h2>
         {!summary.data ? (
           <Loading error={summary.error} />
@@ -450,7 +496,19 @@ export default function Monitoring({
         </details>
       </section>
       <section className="panel">
-        <h2>Alert history</h2>
+        <div className="queue-heading">
+          <div>
+            <span className="eyebrow">INVESTIGATION QUEUE</span>
+            <h2>Alert history</h2>
+            <p>
+              Prioritize findings, coordinate ownership, and keep decisions
+              traceable.
+            </p>
+          </div>
+          <span className="role-label">
+            {auth?.user.role || "viewer"} access
+          </span>
+        </div>
         <div className="dataops-actions">
           <label>
             Alert status
@@ -467,6 +525,20 @@ export default function Monitoring({
                   <option key={s}>{s}</option>
                 ),
               )}
+            </select>
+          </label>
+          <label>
+            Assignment
+            <select
+              value={assignment}
+              onChange={(e) => {
+                setAssignment(e.target.value);
+                setAlertPage(1);
+              }}
+            >
+              <option value="">All assignments</option>
+              {auth && <option value="me">Assigned to me</option>}
+              <option value="unassigned">Unassigned</option>
             </select>
           </label>
           <label>
@@ -500,6 +572,7 @@ export default function Monitoring({
                     <tr>
                       <th>Alert / created</th>
                       <th>Severity / state</th>
+                      <th>Owner</th>
                       <th>Attempt</th>
                       <th>Investigation</th>
                     </tr>
@@ -513,7 +586,19 @@ export default function Monitoring({
                           {new Date(a.created_at).toLocaleString()}
                         </td>
                         <td>
-                          {a.severity} · {a.status}
+                          <span className={`severity severity-${a.severity}`}>
+                            {a.severity}
+                          </span>
+                          <span
+                            className={`incident-status status-${a.status}`}
+                          >
+                            {label(a.status)}
+                          </span>
+                        </td>
+                        <td>
+                          {a.assigned_to || (
+                            <span className="unassigned">Unassigned</span>
+                          )}
                         </td>
                         <td>{short(a.run_id)}</td>
                         <td>
@@ -543,6 +628,7 @@ export default function Monitoring({
           key={selectedAlert}
           id={selectedAlert}
           onInspect={onInspect}
+          onUpdated={() => setRefresh((n) => n + 1)}
         />
       )}
       <section className="panel">

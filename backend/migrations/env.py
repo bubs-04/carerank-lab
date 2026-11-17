@@ -2,6 +2,7 @@ from alembic import context
 from app.db import get_engine
 from app.models import Base
 from app.ingestion.models import RegistryBase
+import app.auth.models  # noqa: F401 — register authentication tables
 import app.monitoring.models  # noqa: F401 — register monitoring tables
 
 with get_engine().connect() as connection:
