@@ -15,10 +15,13 @@ export function useApi<T>(url: string, refresh = 0) {
           window.dispatchEvent(new Event(SESSION_EXPIRED));
         if (!r.ok) {
           const b = await r.json().catch(() => ({}));
-          throw new Error(
+          const message =
             typeof b.detail === "string"
               ? b.detail
-              : `Request failed (${r.status})`,
+              : `Request failed (${r.status})`;
+          const requestId = r.headers.get("X-Request-ID");
+          throw new Error(
+            requestId ? `${message} · Request ID: ${requestId}` : message,
           );
         }
         return r.json();
