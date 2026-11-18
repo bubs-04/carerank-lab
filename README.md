@@ -1,4 +1,4 @@
-# CareRank Lab 5.0
+# CareRank Lab 6.0
 
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB) ![React](https://img.shields.io/badge/React-19-149ECA) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1) ![License](https://img.shields.io/badge/License-MIT-green)
 
@@ -6,7 +6,20 @@ CareRank is an educational healthcare data operations application with durable s
 
 **Ranking uses fictional providers, encounters and scores. Registry data consists of public CMS source records or explicitly labeled test fixtures. Registry identities never receive synthetic scores. No patient records are ingested. CareRank is not affiliated with CMS or Garner, is not suitable for healthcare decisions, and makes no HIPAA certification claim.**
 
-## CareRank 5.0
+## CareRank 6.0
+
+- Authenticated Reliability workspace: outcome rates with explicit denominators, duration percentiles, hourly activity, retries, queue age, stale leases and worker presence.
+- Structured logs with validated request IDs and execution/attempt correlation; no request bodies, credentials, raw query strings or SQL parameters in application logs.
+- Additive migration 007; separate owner/API/worker credentials, mounted secret files, bounded database connection/query waits, liveness and migration-aware readiness.
+- Reproducible isolated PostgreSQL backup/restore, process termination, database crash recovery and synthetic query measurements.
+- Local demo launcher with private random development accounts and an isolated, guarded reset. Optional checksum-verified public CMS archives are explicitly labeled as archived, never fresh retrieval.
+- Production Compose, AWS reference template and a manual release-review workflow. No AWS resources have been created; this is not a production certification.
+
+[Release evidence and limitations](docs/RELEASE_6.0.md) · [Operational architecture](docs/ARCHITECTURE_6.0.md) · [Six-minute Garner demonstration](docs/DEMO_6.0.md) · [Cloud deployment runbook](infra/README.md)
+
+Start the isolated localhost demo with `python3 scripts/demo.py start`. Open `http://127.0.0.1:8086`; credentials remain in ignored `.demo/accounts.json`. The current environment blocks `data.cms.gov`; a genuine CMS archive is **not bundled**, and the live-CMS portion remains a release limitation. Fixture demonstrations work offline after dependencies/images are installed.
+
+## Retained CareRank 5.0 capabilities
 
 - PostgreSQL-backed pipeline definitions, execution attempts and append-only history; no additional queue infrastructure.
 - Configurable interval schedules, authenticated manual runs, cancellation, bounded exponential retries, independent worker heartbeats, leases and interrupted-work recovery.
@@ -22,7 +35,7 @@ Earlier release reports under `docs/` are historical evidence, not current verif
 
 ## Existing installation: preserve history
 
-Back up your database and retain your `.env` and database volume. Generate any missing API/worker credentials, build the updated images, migrate through 006, apply the restricted runtime grants, then restart the API, worker and web services. Do not run `app.pipeline` or a benchmark on a database whose synthetic data must be preserved; those are explicit dataset replacement tools.
+Back up your database and retain your `.env` and database volume. Generate any missing API/worker credentials, build the updated images, migrate through 007, apply the restricted runtime grants, then restart the API, worker and web services. Do not run `app.pipeline` or a benchmark on a database whose synthetic data must be preserved; those are explicit dataset replacement tools.
 
 ```bash
 make setup
@@ -33,6 +46,8 @@ docker compose up -d --no-deps api worker web
 ```
 
 Migration 006 adds `pipeline_definitions`, `pipeline_executions`, `pipeline_attempts` and `pipeline_events`, indexes and append-only event protection. Migrations 004/005 and all existing synthetic, registry, monitoring and identity rows remain intact. Migration 006 refuses downgrade outside disposable `carerank_test`; use forward corrections for retained databases. No migration creates default accounts or schedules.
+
+Migration 007 adds transient `pipeline_workers` presence and history/metric indexes. Only presence older than seven days is pruned; durable executions and audit records are retained. Migration 007 also refuses downgrade outside `carerank_test`. Use the same upgrade/grant procedure above.
 
 ## Local development with Docker Compose
 

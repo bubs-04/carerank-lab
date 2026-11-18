@@ -1,0 +1,28 @@
+
+> carerank-lab@1.0.0 e2e
+> playwright test
+
+
+Running 12 tests using 1 worker
+
+(node:73581) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 e2e/dataops.spec.ts:2:1 › fixture ingestion history, comparison, findings and mobile layout (7.6s)
+  ✓   2 e2e/dataops.spec.ts:53:1 › refresh status stays on Data operations and preserves fixture mode (5.6s)
+  ✓   3 e2e/monitoring.spec.ts:2:1 › monitoring evidence, safe read-only investigation, refresh and mobile navigation (8.2s)
+  ✓   4 e2e/operations.spec.ts:3:1 › scheduled pipeline fails safely, recovers, and retains inspectable evidence (24.4s)
+  ✓   5 e2e/reliability.spec.ts:3:1 › viewer inspects operational reliability, changes window and follows evidence on mobile (8.0s)
+  ✓   6 e2e/security.spec.ts:3:1 › administrator manages access and sees the security audit (5.1s)
+  ✓   7 e2e/security.spec.ts:58:1 › unauthenticated requests and forged identity cannot read protected data (2.8s)
+  ✓   8 e2e/security.spec.ts:89:1 › real sign-in, viewer authorization, CSRF and logout revocation (6.8s)
+  ✓   9 e2e/security.spec.ts:157:1 › analyst request security rejects missing CSRF, foreign origins and stale revisions (560ms)
+  ✓  10 e2e/security.spec.ts:211:1 › analyst assigns, acknowledges, investigates, resolves and reopens with authenticated history (14.0s)
+  ✓  11 e2e/workflow.spec.ts:2:1 › live data supports search, pagination, details, and comparison (8.7s)
+  ✓  12 e2e/workflow.spec.ts:68:1 › analytics covers the full cohort and supports profile navigation on mobile (7.2s)
+
+  12 passed (1.7m)
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.3
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.3
+npm notice To update run: npm install -g npm@12.2.3
+npm notice
