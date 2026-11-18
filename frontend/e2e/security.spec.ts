@@ -65,6 +65,8 @@ test("unauthenticated requests and forged identity cannot read protected data", 
     "/api/pipeline",
     "/api/dataops/monitoring/alerts",
     "/api/auth/users",
+    "/api/operations/pipelines",
+    "/api/operations/executions",
   ]) {
     expect(
       (

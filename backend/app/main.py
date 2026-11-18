@@ -4,6 +4,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from .auth.api import router as auth_router
+from .operations.api import router as operations_router
 from .auth.dependencies import require_user
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
@@ -16,7 +17,7 @@ from .schemas import Analytics, ProviderPage, ProviderView, RunView, QualityCost
 
 app = FastAPI(
     title="CareRank Lab",
-    version="4.0.0",
+    version="5.0.0",
     description="Synthetic educational intelligence. Not clinical advice.",
 )
 DB = Annotated[Session, Depends(get_session)]
@@ -103,6 +104,7 @@ def evidence(db: DB):
 
 
 app.include_router(auth_router)
+app.include_router(operations_router)
 
 app.include_router(dataops_router, dependencies=[Depends(require_user)])
 
