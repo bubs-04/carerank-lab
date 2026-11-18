@@ -54,6 +54,8 @@ class Execution(RegistryBase):
         ),
         Index("ix_pipeline_execution_due", "status", "available_at"),
         Index("ix_pipeline_execution_lease", "status", "lease_expires_at"),
+        Index("ix_pipeline_execution_finished", "finished_at"),
+        Index("ix_pipeline_history", "pipeline_id", "created_at", "id"),
         Index(
             "uq_pipeline_one_running",
             "pipeline_id",
@@ -88,6 +90,7 @@ class Attempt(RegistryBase):
     __tablename__ = "pipeline_attempts"
     __table_args__ = (
         UniqueConstraint("execution_id", "number", name="uq_pipeline_attempt_number"),
+        Index("ix_pipeline_attempt_started", "started_at"),
         CheckConstraint(
             "status IN ('running','succeeded','failed','interrupted','cancelled','timed_out')",
             name="ck_pipeline_attempt_state",

@@ -4,6 +4,7 @@ from app.models import Base
 from app.ingestion.models import RegistryBase
 import app.auth.models  # noqa: F401 — register authentication tables
 import app.monitoring.models  # noqa: F401 — register monitoring tables
+import app.operations.telemetry  # noqa: F401
 import app.operations.models  # noqa: F401 — register durable pipeline tables
 
 with get_engine().connect() as connection:

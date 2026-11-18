@@ -9,6 +9,7 @@ import time
 import uuid
 from sqlalchemy.exc import SQLAlchemyError
 from .service import claim, heartbeat, recover_expired, reconcile_monitoring, schedule_due, finish_claim
+from .telemetry import pulse, instance_id
 
 log = logging.getLogger(__name__)
 
@@ -24,6 +25,7 @@ def terminate(child):
 
 
 def work_once(engine, worker_id, lease_seconds=30):
+    pulse(engine, worker_id)
     recover_expired(engine)
     reconcile_monitoring(engine)
     schedule_due(engine)
@@ -31,6 +33,7 @@ def work_once(engine, worker_id, lease_seconds=30):
     token = claim(engine, worker_id, lease_seconds)
     if token is None:
         return False
+    pulse(engine, worker_id, "running", token.execution_id)
     child = subprocess.Popen(
         [sys.executable, "-m", "app.operations", "execute", token.execution_id, token.attempt_id]
     )
@@ -47,6 +50,7 @@ def work_once(engine, worker_id, lease_seconds=30):
             if time.monotonic() >= next_heartbeat:
                 renewal_started = time.monotonic()
                 try:
+                    pulse(engine, worker_id, "running", token.execution_id)
                     valid = heartbeat(engine, token, lease_seconds)
                 except SQLAlchemyError:
                     # Publication holds the execution lock until its atomic commit.
@@ -67,6 +71,7 @@ def work_once(engine, worker_id, lease_seconds=30):
         recover_expired(engine)
     finally:
         terminate(child)
+    pulse(engine, worker_id)
     return True
 
 
@@ -74,6 +79,10 @@ def run(engine, once=False, lease_seconds=30, poll_seconds=2):
     if engine.dialect.name != "postgresql":
         raise ValueError("Workers require PostgreSQL")
     worker_id = f"worker-{uuid.uuid4()}-{os.getpid()}"
+    log.info(
+        "worker_started",
+        extra={"event": "worker_started", "worker_id": worker_id, "instance_id": instance_id()},
+    )
 
     def stop(signum, frame):
         raise KeyboardInterrupt()
@@ -84,7 +93,14 @@ def run(engine, once=False, lease_seconds=30, poll_seconds=2):
             try:
                 worked = work_once(engine, worker_id, lease_seconds)
             except SQLAlchemyError as exc:
-                log.error("pipeline_worker_database_error type=%s", type(exc).__name__)
+                log.error(
+                    "pipeline_worker_database_error",
+                    extra={
+                        "event": "pipeline_worker_database_error",
+                        "error_type": type(exc).__name__,
+                        "worker_id": worker_id,
+                    },
+                )
                 if once:
                     return 1
                 worked = False
@@ -94,5 +110,11 @@ def run(engine, once=False, lease_seconds=30, poll_seconds=2):
                 time.sleep(poll_seconds)
     except KeyboardInterrupt:
         # The supervisor stops its child; its retained lease/attempt is recovered normally.
-        log.info("pipeline_worker_stopped; outstanding leases remain recoverable")
+        log.info("worker_stopped", extra={"event": "worker_stopped", "worker_id": worker_id})
         return 0
+
+    finally:
+        try:
+            pulse(engine, worker_id, "stopped")
+        except SQLAlchemyError:
+            pass  # The last successful heartbeat becomes visibly stale after a DB outage.
