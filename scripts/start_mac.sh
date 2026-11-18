@@ -31,6 +31,13 @@ if ! grep -q '^API_DATABASE_PASSWORD=' .env; then
   printf '\nAPI_DATABASE_PASSWORD=%s\n' "$api_password" >> .env
   unset api_password
 fi
+if ! grep -q '^WORKER_DATABASE_PASSWORD=' .env; then
+  command -v openssl >/dev/null 2>&1 || { echo 'openssl is required to generate the worker password.' >&2; exit 1; }
+  worker_password=$(openssl rand -hex 24)
+  chmod 600 .env
+  printf '\nWORKER_DATABASE_PASSWORD=%s\n' "$worker_password" >> .env
+  unset worker_password
+fi
 "$docker_bin" compose config --quiet
 "$docker_bin" compose up --build -d
 printf '\nNext: docker compose ps -a\nThen open http://localhost:8080 when db and api are healthy and web is running.\n'

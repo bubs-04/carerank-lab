@@ -1,5 +1,11 @@
 name: CareRank checks
-on: [push, pull_request]
+on:
+  push:
+    branches: [main]
+  pull_request:
+concurrency:
+  group: carerank-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
@@ -42,6 +48,7 @@ jobs:
           values = {
               'CARERANK_CI_DATABASE_URL': f'postgresql+psycopg://carerank:{password}@db:5432/carerank_test',
               'CARERANK_CI_RUNTIME_URL': f'postgresql+psycopg://carerank_api_test:{secrets.token_hex(24)}@db:5432/carerank_test',
+              'CARERANK_CI_WORKER_URL': f'postgresql+psycopg://carerank_worker_test:{secrets.token_hex(24)}@db:5432/carerank_test',
           }
           for prefix, role in [('E2E', 'analyst'), ('E2E_VIEWER', 'viewer'), ('E2E_ADMIN', 'administrator')]:
               values[f'{prefix}_USERNAME'] = f'ci-{role}'
@@ -78,14 +85,17 @@ jobs:
                               '--display-name', 'CI ' + role.title(), '--role', role, '--password-stdin'],
                              input=os.environ[f'{prefix}_PASSWORD'] + '\n', text=True, check=True)
           PY
-          docker compose run --rm --no-deps -e DATABASE_URL="$CARERANK_CI_DATABASE_URL" -e RUNTIME_DATABASE_URL="$CARERANK_CI_RUNTIME_URL" api python -m app.runtime_role
+          docker compose run --rm --no-deps -e DATABASE_URL="$CARERANK_CI_DATABASE_URL" -e RUNTIME_DATABASE_URL="$CARERANK_CI_RUNTIME_URL" -e WORKER_DATABASE_URL="$CARERANK_CI_WORKER_URL" api python -m app.runtime_role
           cat > "$RUNNER_TEMP/carerank-e2e.yaml" <<'YAML'
           services:
             api:
               environment:
                 DATABASE_URL: ${CARERANK_CI_RUNTIME_URL:?Restricted disposable test database login required}
+            worker:
+              environment:
+                DATABASE_URL: ${CARERANK_CI_WORKER_URL:?Restricted disposable worker database login required}
           YAML
-          docker compose -f compose.yaml -f "$RUNNER_TEMP/carerank-e2e.yaml" up -d --no-deps api
+          docker compose -f compose.yaml -f "$RUNNER_TEMP/carerank-e2e.yaml" up -d --no-deps api worker
           for i in $(seq 1 60); do
             if curl -fsS http://127.0.0.1:8080/api/health; then exit 0; fi
             sleep 2
@@ -123,6 +133,7 @@ jobs:
             docs/analyst-workspace-4.0.png
             docs/analyst-mobile-4.0.png
             docs/administration-4.0.png
+            docs/pipeline-operations-5.0.png
             frontend/test-results/**/error-context.md
           if-no-files-found: warn
       - if: always()

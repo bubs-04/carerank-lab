@@ -671,14 +671,24 @@ function Workspace({
     </>
   );
 }
-export default function DataOps() {
-  const [mode, setMode] = useState<"cms" | "fixture">("cms");
+export default function DataOps({
+  initialInspection,
+}: {
+  initialInspection?: {
+    runId: string;
+    snapshotId: string | null;
+    mode: "cms" | "fixture";
+  };
+} = {}) {
+  const [mode, setMode] = useState<"cms" | "fixture">(
+    initialInspection?.mode || "cms",
+  );
   const [refreshKey, setRefreshKey] = useState(0);
   const [tab, setTab] = useState("ingestion");
   const [inspect, setInspect] = useState<{
     runId: string;
     snapshotId?: string | null;
-  }>({ runId: "" });
+  }>(initialInspection || { runId: "" });
   return (
     <>
       <div className="heading">

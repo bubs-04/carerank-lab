@@ -15,7 +15,7 @@ def main():
         f.seek(0)
         content = f.read()
         keys = {line.split("=", 1)[0].strip() for line in content.splitlines() if "=" in line}
-        missing = [key for key in ("POSTGRES_PASSWORD", "API_DATABASE_PASSWORD") if key not in keys]
+        missing = [key for key in ("POSTGRES_PASSWORD", "API_DATABASE_PASSWORD", "WORKER_DATABASE_PASSWORD") if key not in keys]
         if missing and content and not content.endswith("\n"):
             f.write("\n")
         for key in missing:

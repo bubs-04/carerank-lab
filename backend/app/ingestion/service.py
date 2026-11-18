@@ -26,15 +26,29 @@ def registry_lock(db):
         db.execute(text("SELECT pg_advisory_xact_lock(721305)"))
 
 
-def ingest(engine, fetch, mode: str, requested: int, before_commit=None) -> str:
+def ingest(
+    engine,
+    fetch,
+    mode: str,
+    requested: int,
+    before_commit=None,
+    *,
+    run_id=None,
+    transaction_guard=None,
+    on_started=None,
+    on_published=None,
+    evaluate=True,
+) -> str:
     """Create audit, fetch/validate off-transaction, atomically commit all rows or none."""
     from ..monitoring.service import evaluate_safely
 
     if mode not in {"cms", "fixture"} or not 1 <= requested <= 5000:
         raise ValueError("invalid_ingestion_configuration")
-    run_id, source_id, started = str(uuid.uuid4()), f"{mode}-{DATASET}", time.monotonic()
+    run_id, source_id, started = run_id or str(uuid.uuid4()), f"{mode}-{DATASET}", time.monotonic()
     with Session(engine) as db, db.begin():
         registry_lock(db)
+        if transaction_guard:
+            transaction_guard(db)
         if not db.get(DataSource, source_id):
             db.add(
                 DataSource(
@@ -58,6 +72,9 @@ def ingest(engine, fetch, mode: str, requested: int, before_commit=None) -> str:
                 provenance={},
             )
         )
+        if on_started:
+            db.flush()
+            on_started(db, run_id)
     log.info(canonical({"event": "ingestion_started", "run_id": run_id, "mode": mode}))
     batch, result = None, None
     try:
@@ -75,6 +92,8 @@ def ingest(engine, fetch, mode: str, requested: int, before_commit=None) -> str:
         scope_hash = digest(batch.scope)
         with Session(engine) as db, db.begin():
             registry_lock(db)
+            if transaction_guard:
+                transaction_guard(db)
             run = db.get(IngestionRun, run_id)
             counts = dict(Counter(f["code"] for f in result.findings))
             existing = db.scalar(
@@ -143,6 +162,10 @@ def ingest(engine, fetch, mode: str, requested: int, before_commit=None) -> str:
             final_status = run.status
             if before_commit:
                 before_commit()  # Fault injection seam; not exposed via HTTP or CLI.
+            if transaction_guard:
+                transaction_guard(db)  # Recheck lease/deadline after all publication work.
+            if on_published:
+                on_published(db, run)
     except BaseException as exc:
         status = "interrupted" if isinstance(exc, (KeyboardInterrupt, SystemExit)) else "failed"
         code = (
@@ -153,6 +176,8 @@ def ingest(engine, fetch, mode: str, requested: int, before_commit=None) -> str:
             else "internal_error"
         )
         with Session(engine) as db, db.begin():
+            if transaction_guard:
+                transaction_guard(db)
             run = db.get(IngestionRun, run_id)
             run.status, run.error_code, run.finished_at, run.seconds = (
                 status,
@@ -182,10 +207,12 @@ def ingest(engine, fetch, mode: str, requested: int, before_commit=None) -> str:
                 }
             )
         )
-        evaluate_safely(engine, run_id)
+        if evaluate:
+            evaluate_safely(engine, run_id)
         if status == "interrupted":
             raise
         return run_id
     log.info(canonical({"event": "ingestion_finished", "run_id": run_id, "status": final_status}))
-    evaluate_safely(engine, run_id)
+    if evaluate:
+        evaluate_safely(engine, run_id)
     return run_id

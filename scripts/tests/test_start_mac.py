@@ -37,7 +37,7 @@ if [ "$1 $2" = 'compose config' ] && [ "${FAIL_CONFIG:-0}" = 1 ]; then exit 1; f
         self.assertEqual(self.launch().returncode, 0)
         path = self.root / ".env"
         content = path.read_text()
-        self.assertRegex(content, r"^POSTGRES_PASSWORD=[a-f0-9]{48}\nAPI_DATABASE_PASSWORD=[a-f0-9]{48}\n$")
+        self.assertRegex(content, r"^POSTGRES_PASSWORD=[a-f0-9]{48}\nAPI_DATABASE_PASSWORD=[a-f0-9]{48}\n\nWORKER_DATABASE_PASSWORD=[a-f0-9]{48}\n$")
         self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
         again = self.launch()
         self.assertEqual(again.returncode, 0)
@@ -50,7 +50,7 @@ if [ "$1 $2" = 'compose config' ] && [ "${FAIL_CONFIG:-0}" = 1 ]; then exit 1; f
         self.assertEqual(self.launch().returncode, 0)
         content = path.read_text()
         self.assertIn("POSTGRES_PASSWORD=existing-secret\nAPP_ENV=development\n", content)
-        self.assertRegex(content, r"API_DATABASE_PASSWORD=[a-f0-9]{48}\n$")
+        self.assertRegex(content, r"API_DATABASE_PASSWORD=[a-f0-9]{48}\n\nWORKER_DATABASE_PASSWORD=[a-f0-9]{48}\n$")
         self.assertEqual(content.count("API_DATABASE_PASSWORD="), 1)
         self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
 

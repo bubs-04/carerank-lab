@@ -30,6 +30,7 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://carerank:${POSTGRES_PASSWORD}@db:5432/carerank
       RUNTIME_DATABASE_URL: postgresql+psycopg://carerank_api:${API_DATABASE_PASSWORD:?Run make setup first}@db:5432/carerank
+      WORKER_DATABASE_URL: postgresql+psycopg://carerank_worker:${WORKER_DATABASE_PASSWORD:?Run make setup first}@db:5432/carerank
     command: ["python", "-m", "app.runtime_role"]
     depends_on:
       seed: {condition: service_completed_successfully}
@@ -59,6 +60,22 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
+  worker:
+    build: ./backend
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      DATABASE_URL: postgresql+psycopg://carerank_worker:${WORKER_DATABASE_PASSWORD:?Run make setup first}@db:5432/carerank
+      DQ_ENABLED: ${DQ_ENABLED:-true}
+      DQ_REJECTED_PERCENT: ${DQ_REJECTED_PERCENT:-5}
+      DQ_MISSING_PERCENT: ${DQ_MISSING_PERCENT:-5}
+      DQ_DUPLICATE_PERCENT: ${DQ_DUPLICATE_PERCENT:-1}
+      DQ_WARNING_RATE_CHANGE: ${DQ_WARNING_RATE_CHANGE:-10}
+      DQ_ACCEPTED_CHANGE_PERCENT: ${DQ_ACCEPTED_CHANGE_PERCENT:-20}
+      DQ_MEMBERSHIP_PERCENT: ${DQ_MEMBERSHIP_PERCENT:-25}
+    command: ["python", "-m", "app.operations", "worker"]
+    restart: unless-stopped
+    depends_on:
+      runtime: {condition: service_completed_successfully}
   web:
     build: ./frontend
     ports: ["127.0.0.1:8080:8080"]
