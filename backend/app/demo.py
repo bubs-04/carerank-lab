@@ -3,14 +3,16 @@
 import argparse
 import json
 import os
+from contextlib import contextmanager
 from pathlib import Path
 
-from sqlalchemy import func, select, text
+from sqlalchemy import event, func, select, text
 from sqlalchemy.orm import Session
 
 from .auth.models import User
 from .auth.service import create_user
 from .db import get_engine
+from .database_safety import postgres_configuration, postgres_connection
 from .ingestion.archive import read_archive
 from .ingestion.connector import fixture_batch
 from .ingestion.models import IngestionRun, Snapshot
@@ -23,18 +25,51 @@ ROLES = {"administrator", "analyst", "viewer"}
 
 
 def guard(engine):
-    if (
-        os.environ.get("APP_ENV") != "development"
-        or engine.url.get_backend_name() != "postgresql"
-        or engine.url.database != "carerank_demo"
-        or engine.url.username != "carerank_demo_owner"
-        or engine.url.host not in {"db", "127.0.0.1", "localhost"}
-    ):
+    demo_configuration(engine)
+    with engine.connect() as connection:
+        demo_connection(connection)
+
+
+def demo_configuration(engine):
+    if os.environ.get("APP_ENV") != "development":
         raise ValueError("Demo preparation requires the dedicated local carerank_demo development database")
+    postgres_configuration(
+        engine.url,
+        database="carerank_demo",
+        user="carerank_demo_owner",
+        hosts={"db", "127.0.0.1", "localhost"},
+    )
+
+
+def demo_connection(connection):
+    demo_configuration(connection.engine)
+    postgres_connection(
+        connection,
+        database="carerank_demo",
+        user="carerank_demo_owner",
+        hosts={"db", "127.0.0.1", "localhost"},
+    )
+
+
+@contextmanager
+def guarded_demo(engine):
+    demo_configuration(engine)
+    # Preparation, seeding and ingestion open multiple connections. Verify the
+    # server identity at the beginning of EACH transaction, before its first SQL.
+    event.listen(engine, "begin", demo_connection)
+    try:
+        guard(engine)
+        yield
+    finally:
+        event.remove(engine, "begin", demo_connection)
 
 
 def prepare(engine, accounts_path, archive_path=None):
-    guard(engine)
+    with guarded_demo(engine):
+        return prepare_verified(engine, accounts_path, archive_path)
+
+
+def prepare_verified(engine, accounts_path, archive_path=None):
     accounts = json.loads(Path(accounts_path).read_text())
     if not isinstance(accounts, list) or {a.get("role") for a in accounts} != ROLES or len(accounts) != 3:
         raise ValueError("Exactly three development role accounts are required")
@@ -46,6 +81,7 @@ def prepare(engine, accounts_path, archive_path=None):
     ):
         raise ValueError("Invalid demo account file")
     archive = read_archive(Path(archive_path)) if archive_path and Path(archive_path).exists() else None
+    archive_loaded = False
     with engine.connect() as lock:
         lock.execute(text("SELECT pg_advisory_lock(721600)"))
         try:
@@ -81,14 +117,7 @@ def prepare(engine, accounts_path, archive_path=None):
                 if not already:
                     checked_ingest(engine, fetch, "fixture", 5)
             if archive:
-                with Session(engine) as db:
-                    already = any(
-                        row.provenance.get("archive_payload_sha256")
-                        == archive.provenance["archive_payload_sha256"]
-                        for row in db.scalars(select(IngestionRun))
-                    )
-                if not already:
-                    checked_ingest(engine, lambda: archive, "cms", len(archive.rows))
+                archive_loaded = load_archive(engine, archive)
             with Session(engine) as db, db.begin():
                 if not db.scalar(select(func.count()).select_from(Pipeline)):
                     create_pipeline(
@@ -106,13 +135,49 @@ def prepare(engine, accounts_path, archive_path=None):
                     )
         finally:
             lock.execute(text("SELECT pg_advisory_unlock(721600)"))
-    return {"prepared": True, "database": "carerank_demo", "cms_archive_loaded": bool(archive)}
+    return {"prepared": True, "database": "carerank_demo", "cms_archive_loaded": archive_loaded}
+
+
+def archive_published(db, checksum):
+    return bool(
+        db.scalar(
+            select(IngestionRun.id)
+            .join(
+                Snapshot,
+                (Snapshot.id == IngestionRun.snapshot_id) & (Snapshot.source_id == IngestionRun.source_id),
+            )
+            .where(
+                IngestionRun.status.in_(("succeeded", "no_change")),
+                IngestionRun.provenance["archive_payload_sha256"].as_string() == checksum,
+            )
+            .limit(1)
+        )
+    )
+
+
+def load_archive(engine, archive):
+    checksum = archive.provenance["archive_payload_sha256"]
+    with Session(engine) as db:
+        if archive_published(db, checksum):
+            return True
+    checked_ingest(engine, lambda: archive, "cms", len(archive.rows))
+    with Session(engine) as db:
+        if not archive_published(db, checksum):
+            raise ValueError("CMS archive was not linked to a published snapshot")
+    return True
 
 
 def checked_ingest(engine, fetch, mode, count):
     run_id = ingest(engine, fetch, mode, count)
     with Session(engine) as db:
-        if db.get(IngestionRun, run_id).status not in {"succeeded", "no_change"}:
+        run = db.get(IngestionRun, run_id)
+        snapshot = db.get(Snapshot, run.snapshot_id) if run and run.snapshot_id else None
+        if (
+            not run
+            or run.status not in {"succeeded", "no_change"}
+            or not snapshot
+            or snapshot.source_id != run.source_id
+        ):
             raise ValueError("Demo ingestion did not publish")
 
 

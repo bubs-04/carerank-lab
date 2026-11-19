@@ -74,6 +74,10 @@ type Trend = {
   points: {
     run_id: string;
     started_at: string;
+    ingestion_kind:
+      "fresh_cms_retrieval" | "offline_archive_replay" | "artificial_fixture";
+    archive_captured_at: string | null;
+    archive_replayed_at: string | null;
     received: number;
     valid: number;
     rejected: number;
@@ -84,6 +88,11 @@ type Inspect = (runId: string, snapshotId?: string | null) => void;
 const base = "/api/dataops/monitoring";
 const short = (id: string) => id.slice(0, 8);
 const label = (value: string) => value.replaceAll("_", " ");
+const ingestionLabels = {
+  fresh_cms_retrieval: "Fresh CMS retrieval",
+  offline_archive_replay: "Offline archive replay",
+  artificial_fixture: "Artificial fixture ingestion",
+};
 function Loading({ error }: { error: string }) {
   return (
     <p role={error ? "alert" : "status"}>
@@ -302,7 +311,7 @@ function Trends({ mode, runId }: { mode: string; runId: string }) {
   if (!points.length)
     return (
       <p>
-        No comparable successful retrievals yet. Failed attempts remain in
+        No comparable successful ingestions yet. Failed attempts remain in
         ingestion history.
       </p>
     );
@@ -316,21 +325,27 @@ function Trends({ mode, runId }: { mode: string; runId: string }) {
   return (
     <>
       <p>
-        Up to 20 successful retrievals with the same source, prefix size (
+        Up to 20 successful ingestions with the same source, prefix size (
         {scope?.max_rows ?? "unknown"}) and policy ({policy}). Version reuse is
         retained as an attempt. Failed attempts are shown in ingestion history.
       </p>
+      <p>
+        Fresh CMS retrievals, offline archive replays and artificial fixture
+        ingestions are labeled per attempt. Replay time is not a fresh CMS
+        retrieval time; archive capture time is shown separately. Replays do not
+        establish current CMS freshness.
+      </p>
       {points.length < 2 ? (
-        <p>Only one comparable retrieval; no trend can be inferred.</p>
+        <p>Only one comparable ingestion; no trend can be inferred.</p>
       ) : (
         <svg
           className="monitor-trend"
           viewBox="0 0 620 190"
           role="img"
-          aria-label="Accepted record counts across comparable successful retrievals; exact values in the table below"
+          aria-label="Accepted record counts across comparable successful ingestions; provenance and exact values in the table below"
         >
           <title>
-            Accepted records in retrieval order; vertical axis starts at zero
+            Accepted records in ingestion order; vertical axis starts at zero
           </title>
           <path d="M20 25 V150 H590" fill="none" stroke="currentColor" />
           <text x="4" y="170">
@@ -354,24 +369,25 @@ function Trends({ mode, runId }: { mode: string; runId: string }) {
               fill="#167a70"
             >
               <title>
-                {short(p.run_id)}: {p.valid} accepted records
+                {short(p.run_id)} · {ingestionLabels[p.ingestion_kind]}:{" "}
+                {p.valid} accepted records
               </title>
             </circle>
           ))}
           <text x="20" y="185">
-            Earlier retrieval
+            Earlier ingestion
           </text>
           <text x="455" y="185">
-            Latest retrieval
+            Latest ingestion
           </text>
         </svg>
       )}
       <div className="table-scroll">
         <table>
-          <caption>Comparable retrieval counts (exact chart values)</caption>
+          <caption>Comparable ingestion counts (exact chart values)</caption>
           <thead>
             <tr>
-              <th>Run / time</th>
+              <th>Run / provenance / time</th>
               <th>Accepted</th>
               <th>Rejected</th>
               <th>Warning findings</th>
@@ -381,7 +397,39 @@ function Trends({ mode, runId }: { mode: string; runId: string }) {
             {points.map((p) => (
               <tr key={p.run_id}>
                 <td>
-                  {short(p.run_id)} · {new Date(p.started_at).toLocaleString()}
+                  <strong>{short(p.run_id)}</strong>
+                  <div>{ingestionLabels[p.ingestion_kind]}</div>
+                  {p.ingestion_kind === "offline_archive_replay" ? (
+                    <>
+                      <div>
+                        Archive captured:{" "}
+                        {p.archive_captured_at ? (
+                          <time dateTime={p.archive_captured_at}>
+                            {new Date(p.archive_captured_at).toLocaleString()}
+                          </time>
+                        ) : (
+                          "Unknown"
+                        )}
+                      </div>
+                      <div>
+                        Replay started:{" "}
+                        <time dateTime={p.archive_replayed_at ?? p.started_at}>
+                          {new Date(
+                            p.archive_replayed_at ?? p.started_at,
+                          ).toLocaleString()}
+                        </time>
+                      </div>
+                    </>
+                  ) : (
+                    <div>
+                      {p.ingestion_kind === "fresh_cms_retrieval"
+                        ? "Retrieval started: "
+                        : "Ingestion started: "}
+                      <time dateTime={p.started_at}>
+                        {new Date(p.started_at).toLocaleString()}
+                      </time>
+                    </div>
+                  )}
                 </td>
                 <td>{p.valid}</td>
                 <td>
@@ -700,7 +748,7 @@ export default function Monitoring({
         )}
       </section>
       <section className="panel">
-        <h2>Comparable retrieval trends</h2>
+        <h2>Comparable ingestion trends</h2>
         <label>
           Trend reference attempt
           <select

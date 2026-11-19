@@ -11,10 +11,10 @@ from alembic.config import Config
 from fastapi.testclient import TestClient
 import pytest
 from sqlalchemy import create_engine, select, text
-from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 from app.main import app
 from app.db import get_engine
+from app.database_safety import postgres_configuration, postgres_connection
 from app.auth.service import create_user
 from app.observability import SafeJSONFormatter, request_id
 from app.secrets import resolve_secret
@@ -28,7 +28,7 @@ def telemetry_engine():
     url = os.environ.get("TEST_DATABASE_URL")
     if not url:
         pytest.skip("Requires disposable PostgreSQL carerank_test")
-    assert make_url(url).database == "carerank_test" and make_url(url).get_backend_name() == "postgresql"
+    postgres_configuration(url, database="carerank_test")
     env = {
         "DATABASE_URL": url,
         "APP_ENV": "development",
@@ -38,20 +38,31 @@ def telemetry_engine():
     old = {k: os.environ.get(k) for k in env}
     os.environ.update(env)
     get_engine.cache_clear()
-    command.upgrade(Config("alembic.ini"), "head")
     engine = create_engine(url)
+    try:
+        prepare_telemetry_database(engine)
+        yield engine
+    finally:
+        engine.dispose()
+        get_engine.cache_clear()
+        for k, v in old.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+
+
+def prepare_telemetry_database(engine):
+    postgres_configuration(engine.url, database="carerank_test")
     with engine.begin() as db:
+        postgres_connection(db, database="carerank_test")
+        config = Config("alembic.ini")
+        config.attributes["connection"] = db
+        command.upgrade(config, "head")
+        postgres_connection(db, database="carerank_test")
         db.execute(text("TRUNCATE pipeline_definitions CASCADE"))
         db.execute(text("DELETE FROM pipeline_workers"))
         db.execute(text("DELETE FROM auth_login_limits"))
-    yield engine
-    engine.dispose()
-    get_engine.cache_clear()
-    for k, v in old.items():
-        if v is None:
-            os.environ.pop(k, None)
-        else:
-            os.environ[k] = v
 
 
 def test_logs_never_include_query_credentials_or_request_body():

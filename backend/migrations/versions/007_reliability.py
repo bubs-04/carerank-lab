@@ -1,8 +1,8 @@
 """Add worker presence and bounded-history query indexes; preserve all prior evidence."""
 
-from pathlib import Path
 from alembic import op
 import sqlalchemy as sa
+from app.database_safety import disposable_connection
 
 revision = "007"
 down_revision = "006"
@@ -28,11 +28,12 @@ def upgrade():
 
 
 def downgrade():
-    url = op.get_bind().engine.url
-    if url.database != "carerank_test" and not (
-        url.get_backend_name() == "sqlite" and Path(url.database or "").name == "carerank_test"
-    ):
-        raise RuntimeError("Migration 007 is forward-only outside carerank_test")
+    try:
+        disposable_connection(op.get_bind())
+    except ValueError:
+        raise RuntimeError(
+            "Migration 007 is forward-only outside the verified carerank_test connection"
+        ) from None
     op.drop_index("ix_pipeline_history", "pipeline_executions")
     op.drop_index("ix_pipeline_attempt_started", "pipeline_attempts")
     op.drop_index("ix_pipeline_execution_finished", "pipeline_executions")

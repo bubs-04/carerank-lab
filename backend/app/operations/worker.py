@@ -25,13 +25,29 @@ def terminate(child):
 
 
 def work_once(engine, worker_id, lease_seconds=30):
-    pulse(engine, worker_id)
+    try:
+        return _work_once(engine, worker_id, lease_seconds)
+    except Exception:
+        mark_degraded(engine, worker_id)
+        raise
+
+
+def mark_degraded(engine, worker_id):
+    try:
+        pulse(engine, worker_id, "degraded")
+    except SQLAlchemyError:
+        # During an outage the previous presence expires instead of being renewed.
+        pass
+
+
+def _work_once(engine, worker_id, lease_seconds):
     recover_expired(engine)
     reconcile_monitoring(engine)
     schedule_due(engine)
     claim_started = time.monotonic()
     token = claim(engine, worker_id, lease_seconds)
     if token is None:
+        pulse(engine, worker_id)
         return False
     pulse(engine, worker_id, "running", token.execution_id)
     child = subprocess.Popen(
@@ -46,22 +62,26 @@ def work_once(engine, worker_id, lease_seconds=30):
             if time.monotonic() >= confirmed_until:
                 terminate(child)
                 recover_expired(engine)
+                mark_degraded(engine, worker_id)
                 return True
             if time.monotonic() >= next_heartbeat:
                 renewal_started = time.monotonic()
                 try:
-                    pulse(engine, worker_id, "running", token.execution_id)
                     valid = heartbeat(engine, token, lease_seconds)
+                    if valid:
+                        pulse(engine, worker_id, "running", token.execution_id)
                 except SQLAlchemyError:
                     # Publication holds the execution lock until its atomic commit.
                     # A short heartbeat lock timeout is not itself a lost lease.
                     # Retry only inside the last confirmed lease; the child also
                     # checks its database lease/deadline immediately before commit.
+                    mark_degraded(engine, worker_id)
                     next_heartbeat = time.monotonic() + 0.2
                 else:
                     if not valid:
                         terminate(child)
                         recover_expired(engine)
+                        mark_degraded(engine, worker_id)
                         return True
                     confirmed_until = renewal_started + lease_seconds
                     next_heartbeat = time.monotonic() + min(5, lease_seconds / 3)
@@ -92,11 +112,16 @@ def run(engine, once=False, lease_seconds=30, poll_seconds=2):
         while True:
             try:
                 worked = work_once(engine, worker_id, lease_seconds)
-            except SQLAlchemyError as exc:
+            except Exception as exc:
+                event = (
+                    "pipeline_worker_database_error"
+                    if isinstance(exc, SQLAlchemyError)
+                    else "pipeline_worker_tick_error"
+                )
                 log.error(
-                    "pipeline_worker_database_error",
+                    event,
                     extra={
-                        "event": "pipeline_worker_database_error",
+                        "event": event,
                         "error_type": type(exc).__name__,
                         "worker_id": worker_id,
                     },

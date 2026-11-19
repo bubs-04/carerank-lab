@@ -416,13 +416,14 @@ export default function Reliability({
                 </div>
               </dl>
               <p>
-                Oldest eligible queued or retry work:{" "}
+                Oldest due queued or retry work:{" "}
                 <strong>
                   {report.queue.oldest_ready_age_seconds === null
-                    ? "None ready"
+                    ? "None due"
                     : elapsed(report.queue.oldest_ready_age_seconds)}
                 </strong>
-                . A future retry delay is not overdue work.
+                . Includes blocked work whose scheduled time has arrived; it may
+                not be claimable yet. Future retry delays are excluded.
               </p>
               <button onClick={onPipelines}>
                 Inspect pipeline histories <ArrowUpRight size={15} />

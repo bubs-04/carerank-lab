@@ -1,7 +1,7 @@
 """Offline reliability cases. SQLite checks portability; PostgreSQL checks live separately."""
 
 from concurrent.futures import ThreadPoolExecutor
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
@@ -389,7 +389,72 @@ def test_trends_are_scope_filtered_and_bounded(engine, client):
     result = client.get("/api/dataops/monitoring/trends?mode=fixture&limit=1").json()
     assert len(result["points"]) == 1
     assert result["points"][0]["valid"] == 5
+    assert result["points"][0]["ingestion_kind"] == "artificial_fixture"
+    assert result["points"][0]["archive_captured_at"] is None
+    assert result["points"][0]["archive_replayed_at"] is None
     assert client.get("/api/dataops/monitoring/trends?mode=cms&run_id=" + first).status_code == 422
+
+
+@pytest.mark.parametrize(
+    "replay_marker", [{"archive_replay": True}, {"retrieval_method": "verified_offline_cms_archive"}]
+)
+def test_trends_keep_attempt_provenance_for_mixed_cms_history(engine, client, replay_marker):
+    captured_at = "2026-10-01T12:00:00+00:00"
+    live = {"mode": "cms", "retrieval_method": "bounded_csv_stream"}
+    archive = {
+        **live,
+        **replay_marker,
+        "archive_captured_at": captured_at,
+        "archive_payload_sha256": "a" * 64,
+        "fresh_live_retrieval": False,
+    }
+
+    def public_batch(provenance):
+        result = batch()
+        result.provenance = provenance
+        return result
+
+    # Identical content shares a snapshot; each attempt must retain its own origin.
+    ids = [
+        ingest(engine, lambda: public_batch(provenance), "cms", 5, evaluate=False)
+        for provenance in (live, archive, live)
+    ]
+    fixture_id = run(engine)
+    with Session(engine) as db, db.begin():
+        for index, run_id in enumerate(ids):
+            db.get(IngestionRun, run_id).started_at = datetime(2026, 11, 16 + index, 12)
+        assert [db.get(IngestionRun, run_id).status for run_id in ids] == [
+            "succeeded",
+            "no_change",
+            "no_change",
+        ]
+        snapshot_id = db.get(IngestionRun, ids[0]).snapshot_id
+        assert db.get(Snapshot, snapshot_id).provenance == live
+
+    response = client.get("/api/dataops/monitoring/trends?mode=cms")
+    assert response.status_code == 200
+    points = response.json()["points"]
+    assert [point["run_id"] for point in points] == ids
+    assert {point["snapshot_id"] for point in points} == {snapshot_id}
+    assert [point["ingestion_kind"] for point in points] == [
+        "fresh_cms_retrieval",
+        "offline_archive_replay",
+        "fresh_cms_retrieval",
+    ]
+    assert points[1]["provenance"] == archive
+    assert datetime.fromisoformat(points[1]["archive_captured_at"]) == datetime.fromisoformat(captured_at)
+    assert points[1]["archive_replayed_at"] == points[1]["started_at"]
+    assert points[1]["archive_captured_at"] != points[1]["archive_replayed_at"]
+    for point in (points[0], points[2]):
+        assert point["provenance"] == live
+        assert point["archive_captured_at"] is None
+        assert point["archive_replayed_at"] is None
+
+    fixture_points = client.get("/api/dataops/monitoring/trends?mode=fixture").json()["points"]
+    assert [point["run_id"] for point in fixture_points] == [fixture_id]
+    assert fixture_points[0]["ingestion_kind"] == "artificial_fixture"
+    assert fixture_points[0]["archive_captured_at"] is None
+    assert fixture_points[0]["archive_replayed_at"] is None
 
 
 def test_migration_audit_immutability_and_registry_preservation(tmp_path, monkeypatch):

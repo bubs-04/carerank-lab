@@ -234,9 +234,30 @@ def trends(
         reference_run_id=reference.id if reference else None,
         scope=snapshot.scope if snapshot else None,
         policy=snapshot.policy if snapshot else None,
-        points=[
-            dict(run_id=r.id, **{k: getattr(r, k) for k in schemas.TrendPoint.model_fields if k != "run_id"})
-            for r in points
-        ],
+        points=[trend_point(r, mode) for r in points],
         caveat=CAVEAT,
+    )
+
+
+def trend_point(run: IngestionRun, mode: Mode):
+    # A no-change run may reuse a snapshot from a different retrieval method.
+    # Provenance and replay time therefore belong to this attempt, not its snapshot.
+    provenance = run.provenance
+    replay = mode == "cms" and (
+        provenance.get("archive_replay") is True
+        or provenance.get("retrieval_method") == "verified_offline_cms_archive"
+    )
+    return dict(
+        run_id=run.id,
+        snapshot_id=run.snapshot_id,
+        started_at=run.started_at,
+        ingestion_kind="artificial_fixture"
+        if mode == "fixture"
+        else "offline_archive_replay"
+        if replay
+        else "fresh_cms_retrieval",
+        provenance=provenance,
+        archive_captured_at=provenance.get("archive_captured_at") if replay else None,
+        archive_replayed_at=run.started_at if replay else None,
+        **{key: getattr(run, key) for key in ("received", "valid", "rejected", "warnings")},
     )

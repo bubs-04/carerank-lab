@@ -58,6 +58,13 @@ def configure_logging():
     root.setLevel(logging.INFO)
     for name in ("httpx", "httpcore", "sqlalchemy.engine"):
         logging.getLogger(name).setLevel(logging.WARNING)
+    # Uvicorn otherwise inherits its own plaintext handler, including tracebacks.
+    # Its startup/error events must use the same bounded policy as application logs.
+    for name in ("uvicorn", "uvicorn.error"):
+        logger = logging.getLogger(name)
+        logger.handlers = []
+        logger.propagate = True
+        logger.disabled = False
     # Uvicorn's default access log includes query strings; use our route-template log.
     logging.getLogger("uvicorn.access").disabled = True
 
@@ -76,6 +83,8 @@ class RequestLogMiddleware:
             )
         except (ValueError, UnicodeError):
             correlation = str(uuid.uuid4())
+        # Starlette's outer 500 handler runs after this middleware unwinds.
+        scope.setdefault("state", {})["request_id"] = correlation
         token = request_id.set(correlation)
         started, status = time.monotonic(), 500
 

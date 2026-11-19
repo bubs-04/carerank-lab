@@ -115,6 +115,10 @@ it("presents measured denominators, worker states and read-only evidence navigat
   expect(screen.getByText("Healthy · running")).toBeVisible();
   expect(screen.getByText("Stale heartbeat · running")).toBeVisible();
   expect(screen.getByText("Not ready · degraded")).toBeVisible();
+  expect(screen.getByText(/Oldest due queued or retry work/)).toHaveTextContent(
+    "Includes blocked work whose scheduled time has arrived; it may not be claimable yet.",
+  );
+  expect(screen.queryByText(/Oldest eligible/)).not.toBeInTheDocument();
   expect(
     screen.getByText(/1 running execution\(s\) have an expired lease/),
   ).toBeVisible();
@@ -172,7 +176,7 @@ it("does not fabricate a success percentage or duration when no samples exist", 
   ).toBeVisible();
   expect(screen.getAllByText("No sample")).toHaveLength(2);
   expect(screen.queryByText("0.0%")).not.toBeInTheDocument();
-  expect(screen.getByText("None ready")).toBeVisible();
+  expect(screen.getByText("None due")).toBeVisible();
   expect(screen.getByText(/No workers have reported presence/)).toBeVisible();
   fireEvent.click(screen.getByText("Exact hourly activity", { exact: true }));
   expect(

@@ -76,3 +76,71 @@ def test_demo_guard_rejects_retained_or_remote_databases(monkeypatch, url, envir
     monkeypatch.setenv("APP_ENV", environment)
     with pytest.raises(ValueError):
         guard(SimpleNamespace(url=make_url(url)))
+
+
+@pytest.fixture
+def archive_engine():
+    from sqlalchemy import create_engine
+    from app.ingestion.models import RegistryBase
+    import app.monitoring.models  # noqa: F401
+
+    engine = create_engine("sqlite://")
+    RegistryBase.metadata.create_all(engine)
+    yield engine
+    engine.dispose()
+
+
+def archive_batch(tmp_path):
+    path = tmp_path / "mock-public-source-contract.json"
+    path.write_text(json.dumps(document()))
+    return read_archive(path)
+
+
+def test_failed_archive_attempt_is_preserved_and_retried_until_published(archive_engine, tmp_path):
+    from sqlalchemy import select, func
+    from sqlalchemy.orm import Session
+    from app.demo import load_archive, archive_published
+    from app.ingestion.models import IngestionRun, Snapshot
+    from app.ingestion.service import ingest
+
+    batch = archive_batch(tmp_path)
+
+    def failure():
+        raise RuntimeError("harmless publication failure")
+
+    failed = ingest(archive_engine, lambda: batch, "cms", 5, before_commit=failure)
+    with Session(archive_engine) as db:
+        row = db.get(IngestionRun, failed)
+        assert row.status == "failed" and row.provenance["archive_payload_sha256"]
+        assert not archive_published(db, batch.provenance["archive_payload_sha256"])
+    assert load_archive(archive_engine, batch)
+    assert load_archive(archive_engine, batch)
+    with Session(archive_engine) as db:
+        assert db.get(IngestionRun, failed).status == "failed"
+        assert db.scalar(select(func.count()).select_from(IngestionRun)) == 2
+        assert db.scalar(select(func.count()).select_from(Snapshot)) == 1
+
+
+@pytest.mark.parametrize("status", ["running", "succeeded", "no_change"])
+def test_checksum_without_publication_link_never_suppresses_retry(archive_engine, tmp_path, status):
+    from sqlalchemy import select, func
+    from sqlalchemy.orm import Session
+    from app.demo import load_archive, archive_published
+    from app.ingestion.models import IngestionRun, Snapshot
+    from app.ingestion.service import ingest
+
+    batch = archive_batch(tmp_path)
+    incomplete = ingest(archive_engine, lambda: batch, "cms", 5)
+    with Session(archive_engine) as db, db.begin():
+        row = db.get(IngestionRun, incomplete)
+        row.status, row.snapshot_id = status, None
+    with Session(archive_engine) as db:
+        assert not archive_published(db, batch.provenance["archive_payload_sha256"])
+    assert load_archive(archive_engine, batch)
+    assert load_archive(archive_engine, batch)
+    with Session(archive_engine) as db:
+        rows = list(db.scalars(select(IngestionRun)))
+        assert len(rows) == 2
+        assert any(row.status == "no_change" and row.snapshot_id for row in rows)
+        assert db.get(IngestionRun, incomplete).snapshot_id is None
+        assert db.scalar(select(func.count()).select_from(Snapshot)) == 1

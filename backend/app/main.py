@@ -1,4 +1,5 @@
 import logging
+import uuid
 from typing import Annotated, Literal
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
@@ -15,7 +16,7 @@ from .ingestion.api import router as dataops_router
 from .monitoring.api import router as monitoring_router
 from . import repository, analytics as cohort_analytics
 from .schemas import Analytics, ProviderPage, ProviderView, RunView, QualityCost, Evidence
-from .observability import RequestLogMiddleware, configure_logging
+from .observability import RequestLogMiddleware, configure_logging, request_id
 
 configure_logging()
 
@@ -24,8 +25,26 @@ app = FastAPI(
     version="6.0.0",
     description="Synthetic educational intelligence. Not clinical advice.",
 )
-app.add_middleware(RequestLogMiddleware)
 DB = Annotated[Session, Depends(get_session)]
+
+
+@app.exception_handler(Exception)
+async def unexpected_error(request: Request, error: Exception):
+    """Preserve correlation even when Starlette creates an outermost 500 response."""
+    correlation = getattr(request.state, "request_id", None) or str(uuid.uuid4())
+    token = request_id.set(correlation)
+    try:
+        logging.getLogger(__name__).error(
+            "unexpected_http_error",
+            extra={"event": "unexpected_http_error", "error_type": type(error).__name__},
+        )
+    finally:
+        request_id.reset(token)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error"},
+        headers={"X-Request-ID": correlation},
+    )
 
 
 @app.exception_handler(SQLAlchemyError)
@@ -153,3 +172,7 @@ async def security_headers(request: Request, call_next):
         response.headers["Cache-Control"] = "no-store"
         response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
     return response
+
+
+# Keep correlation outside other application middleware, including their failures.
+app.add_middleware(RequestLogMiddleware)
