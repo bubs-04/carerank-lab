@@ -1,5 +1,7 @@
 # CareRank 6.0 release evidence and limitations
 
+The subsequent [security and demo remediation report](REMEDIATION_6.0.md) supersedes the initial security findings and test totals below. It documents the corrections to reviewed commit `a9aea18`, preservation evidence, current independent CI and the required P0 re-review.
+
 Baseline: merged CareRank 5.0, `4b34e16`; feature branch `feat/enterprise-platform-v6`. This is a review candidate, not a production deployment or a completed real-CMS showcase. No AWS resources, public deployment, merge or Mac database changes were performed.
 
 ## Change summary
