@@ -1,0 +1,55 @@
+name: Review production release (no deployment)
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: Reviewed 40-character commit on main
+        required: true
+      backend_image:
+        description: Approved private ECR backend image URI pinned by sha256
+        required: true
+      web_image:
+        description: Approved private ECR web image URI pinned by sha256
+        required: true
+permissions:
+  contents: read
+  actions: read
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    environment: production-review
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - name: Verify exact commit, image references and independent CI
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_ID: ${{ inputs.commit }}
+          BACKEND_IMAGE: ${{ inputs.backend_image }}
+          WEB_IMAGE: ${{ inputs.web_image }}
+        run: |
+          python - <<'PY'
+          import importlib.util, json, os, re, subprocess
+          from pathlib import Path
+          spec = importlib.util.spec_from_file_location('release', 'infra/check_release.py')
+          release = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(release)
+          sha = os.environ['RELEASE_ID']
+          assert re.fullmatch(r'[a-f0-9]{40}', sha), 'Exact commit required'
+          for key in ('BACKEND_IMAGE', 'WEB_IMAGE'):
+              assert release.IMAGE.fullmatch(os.environ[key]), 'Immutable private ECR image required'
+          subprocess.run(['git', 'merge-base', '--is-ancestor', sha, 'origin/main'], check=True)
+          repository = os.environ['GITHUB_REPOSITORY']
+          runs = json.loads(subprocess.check_output([
+              'gh', 'api', f'repos/{repository}/actions/runs?head_sha={sha}&per_page=100'
+          ]))['workflow_runs']
+          passed = [r for r in runs if r['name'] == 'CareRank checks' and r['conclusion'] == 'success'
+                    and r['head_sha'] == sha]
+          assert passed, 'Successful CareRank checks for the exact release SHA are required'
+          receipt = {key: os.environ[key] for key in ('RELEASE_ID', 'BACKEND_IMAGE', 'WEB_IMAGE')}
+          receipt.update(ci_run_url=passed[0]['html_url'],
+                         approval_run_url=f'https://github.com/{repository}/actions/runs/' + os.environ['GITHUB_RUN_ID'])
+          Path('reviewed-release.json').write_text(json.dumps(receipt, indent=2) + '\n')
+          PY
+      - uses: actions/upload-artifact@v4
+        with: {name: reviewed-release, path: reviewed-release.json, retention-days: 30}

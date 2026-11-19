@@ -100,6 +100,10 @@ class TrendPoint(BaseModel):
     run_id: str
     snapshot_id: str
     started_at: datetime
+    ingestion_kind: Literal["fresh_cms_retrieval", "offline_archive_replay", "artificial_fixture"]
+    provenance: dict
+    archive_captured_at: datetime | None
+    archive_replayed_at: datetime | None
     received: int
     valid: int
     rejected: int

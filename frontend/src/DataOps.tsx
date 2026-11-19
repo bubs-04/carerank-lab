@@ -68,6 +68,33 @@ const statusLabel = (status: string) =>
   status === "no_change" ? "Version reused" : status;
 const short = (id: string) => id.slice(0, 8);
 const date = (s: string) => new Date(s).toLocaleString();
+const archived = (provenance?: Record<string, unknown>) =>
+  provenance?.archive_replay === true;
+function ArchiveNotice({
+  provenance,
+}: {
+  provenance?: Record<string, unknown>;
+}) {
+  if (!archived(provenance)) return null;
+  return (
+    <p className="pipeline-caveat">
+      <strong>Archived public CMS data.</strong> Replayed offline from an
+      archived official source response.
+      {typeof provenance?.archive_captured_at === "string" && (
+        <>
+          {" "}
+          Captured{" "}
+          <time dateTime={provenance.archive_captured_at}>
+            {date(provenance.archive_captured_at)}
+          </time>
+          .
+        </>
+      )}{" "}
+      This is not a fresh live retrieval and does not establish current CMS
+      data.
+    </p>
+  );
+}
 function Load({ error }: { error: string }) {
   return (
     <p role={error ? "alert" : "status"}>
@@ -318,11 +345,14 @@ function Attempt({ runId }: { runId: string }) {
     `/api/dataops/monitoring/runs/${encodeURIComponent(runId)}`,
   );
   return result.data ? (
-    <p>
-      {result.data.status} · requested {result.data.requested} · received{" "}
-      {result.data.received ?? "unknown"} · error{" "}
-      {result.data.error_code || "none recorded"}
-    </p>
+    <>
+      <p>
+        {result.data.status} · requested {result.data.requested} · received{" "}
+        {result.data.received ?? "unknown"} · error{" "}
+        {result.data.error_code || "none recorded"}
+      </p>
+      <ArchiveNotice provenance={result.data.provenance} />
+    </>
   ) : (
     <Load error={result.error} />
   );
@@ -400,7 +430,7 @@ function Workspace({
                 </small>
               </section>
               <section className="metric">
-                <div>Latest successful retrieval</div>
+                <div>Latest published version</div>
                 <strong className="dataops-status">
                   {success ? short(success.snapshot_id ?? "") : "None"}
                 </strong>
@@ -419,6 +449,13 @@ function Workspace({
                 <small>seconds · pending if still running</small>
               </section>
             </div>
+            <ArchiveNotice
+              provenance={
+                archived(success?.provenance)
+                  ? success?.provenance
+                  : attempt?.provenance
+              }
+            />
             {attempt ? (
               <>
                 <p>
@@ -454,8 +491,8 @@ function Workspace({
               </>
             ) : (
               <p>
-                No {mode === "cms" ? "live CMS" : "fixture"} ingestion yet. Run
-                the CLI below; this page cannot start external jobs.
+                No {mode === "cms" ? "CMS" : "fixture"} ingestion yet. Run the
+                CLI below; this page cannot start external jobs.
               </p>
             )}
             <details>
@@ -512,7 +549,7 @@ function Workspace({
                 <table>
                   <thead>
                     <tr>
-                      <th>Version / captured</th>
+                      <th>Version / published</th>
                       <th>Release / scope</th>
                       <th>Valid / rejected</th>
                       <th>Checksum / policy</th>
@@ -526,6 +563,11 @@ function Workspace({
                           {short(v.id)}
                           <br />
                           {date(v.created_at)}
+                          {archived(v.provenance) && (
+                            <small className="provider-sub">
+                              Archived public CMS data
+                            </small>
+                          )}
                         </td>
                         <td>
                           {String(v.provenance.release ?? "Not supplied")}
@@ -625,6 +667,11 @@ function Workspace({
                         </td>
                         <td>
                           {statusLabel(r.status)}
+                          {archived(r.provenance) && (
+                            <small className="provider-sub">
+                              Archived public CMS data
+                            </small>
+                          )}
                           {r.error_code && (
                             <small className="provider-sub">
                               {r.error_code}
@@ -711,7 +758,7 @@ export default function DataOps({
               setInspect({ runId: "" });
             }}
           >
-            <option value="cms">Live CMS registry</option>
+            <option value="cms">Public CMS registry (live or archived)</option>
             <option value="fixture">Deterministic fixture (test data)</option>
           </select>
         </label>

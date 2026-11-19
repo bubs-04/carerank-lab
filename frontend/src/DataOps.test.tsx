@@ -113,12 +113,10 @@ function setup(empty = false) {
   vi.stubGlobal("fetch", fetch);
   return fetch;
 }
-it("explains the empty live workspace and CLI-only initiation", async () => {
+it("explains the empty CMS workspace and CLI-only initiation", async () => {
   setup(true);
   render(<DataOps />);
-  expect(
-    await screen.findByText(/No live CMS ingestion yet/),
-  ).toBeInTheDocument();
+  expect(await screen.findByText(/No CMS ingestion yet/)).toBeInTheDocument();
   expect(
     screen.queryByRole("button", { name: /start ingestion/i }),
   ).not.toBeInTheDocument();
@@ -201,4 +199,58 @@ it("uses a public-registry disclaimer without changing synthetic pages", async (
   expect(
     await screen.findByText(/All data and scores are synthetic/),
   ).toBeInTheDocument();
+});
+
+it("labels offline public CMS replay separately from fresh retrieval and artificial fixtures", async () => {
+  const provenance = {
+    archive_replay: true,
+    fresh_live_retrieval: false,
+    archive_captured_at: "2026-10-01T12:00:00Z",
+    retrieval_method: "verified_offline_cms_archive",
+  };
+  const archivedRun = { ...run, provenance };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => ({
+      ok: true,
+      json: async () => {
+        if (url.includes("/dataops/status"))
+          return {
+            sources: [],
+            latest_attempt: archivedRun,
+            latest_success: archivedRun,
+            snapshot_count: 1,
+          };
+        if (url.includes("/dataops/versions"))
+          return page([{ ...version, provenance }]);
+        if (url.includes("/dataops/runs")) return page([archivedRun]);
+        return page([]);
+      },
+    })),
+  );
+  render(<DataOps />);
+  expect(
+    await screen.findByText("Archived public CMS data.", { exact: true }),
+  ).toBeVisible();
+  expect(screen.getByText(/This is not a fresh live retrieval/)).toBeVisible();
+  expect(
+    screen.getByText(/Captured/, { selector: ".pipeline-caveat" }),
+  ).toHaveTextContent(
+    new Date(provenance.archive_captured_at).toLocaleString(),
+  );
+  expect(
+    screen.getByRole("option", {
+      name: "Public CMS registry (live or archived)",
+    }),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByText("Latest successful retrieval"),
+  ).not.toBeInTheDocument();
+  expect(screen.getByText("Latest published version")).toBeVisible();
+  const history = screen
+    .getByRole("heading", { name: "Dataset version history" })
+    .closest("section")!;
+  expect(
+    within(history).getByText("Archived public CMS data", { exact: true }),
+  ).toBeVisible();
 });

@@ -1,10 +1,12 @@
 import logging
+import uuid
 from typing import Annotated, Literal
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from .auth.api import router as auth_router
 from .operations.api import router as operations_router
+from .operations.telemetry import router as telemetry_router
 from .auth.dependencies import require_user
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
@@ -14,19 +16,43 @@ from .ingestion.api import router as dataops_router
 from .monitoring.api import router as monitoring_router
 from . import repository, analytics as cohort_analytics
 from .schemas import Analytics, ProviderPage, ProviderView, RunView, QualityCost, Evidence
+from .observability import RequestLogMiddleware, configure_logging, request_id
+
+configure_logging()
 
 app = FastAPI(
     title="CareRank Lab",
-    version="5.0.0",
+    version="6.0.0",
     description="Synthetic educational intelligence. Not clinical advice.",
 )
 DB = Annotated[Session, Depends(get_session)]
 
 
+@app.exception_handler(Exception)
+async def unexpected_error(request: Request, error: Exception):
+    """Preserve correlation even when Starlette creates an outermost 500 response."""
+    correlation = getattr(request.state, "request_id", None) or str(uuid.uuid4())
+    token = request_id.set(correlation)
+    try:
+        logging.getLogger(__name__).error(
+            "unexpected_http_error",
+            extra={"event": "unexpected_http_error", "error_type": type(error).__name__},
+        )
+    finally:
+        request_id.reset(token)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error"},
+        headers={"X-Request-ID": correlation},
+    )
+
+
 @app.exception_handler(SQLAlchemyError)
 async def database_error(request: Request, error: SQLAlchemyError):
     """Return a safe service error without exposing credentials or query internals."""
-    logging.getLogger(__name__).error("database_error type=%s", type(error).__name__)
+    logging.getLogger(__name__).error(
+        "database_error", extra={"event": "database_error", "error_type": type(error).__name__}
+    )
     return JSONResponse(
         status_code=503, content={"detail": "Database unavailable. Check connection and migrations."}
     )
@@ -35,6 +61,18 @@ async def database_error(request: Request, error: SQLAlchemyError):
 @app.get("/api/health")
 def health(db: DB) -> dict[str, str]:
     db.execute(text("SELECT 1"))
+    return {"status": "ok"}
+
+
+@app.get("/api/live")
+def live():
+    return {"status": "ok"}
+
+
+@app.get("/api/ready")
+def ready(db: DB):
+    if db.scalar(text("SELECT version_num FROM alembic_version")) != "007":
+        return JSONResponse(status_code=503, content={"status": "not_ready"})
     return {"status": "ok"}
 
 
@@ -105,6 +143,7 @@ def evidence(db: DB):
 
 app.include_router(auth_router)
 app.include_router(operations_router)
+app.include_router(telemetry_router)
 
 app.include_router(dataops_router, dependencies=[Depends(require_user)])
 
@@ -133,3 +172,7 @@ async def security_headers(request: Request, call_next):
         response.headers["Cache-Control"] = "no-store"
         response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
     return response
+
+
+# Keep correlation outside other application middleware, including their failures.
+app.add_middleware(RequestLogMiddleware)

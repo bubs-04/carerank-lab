@@ -512,14 +512,20 @@ def test_manual_retry_preserves_cancelled_execution_and_rejects_stale_control(op
         assert db.get(Execution, retried.json()["id"]).status == "succeeded"
 
 
-def test_migration_005_to_006_preserves_every_existing_table(ops_engine, accounts):
+@pytest.mark.parametrize("baseline", ["005", "006"])
+def test_migration_to_007_preserves_every_existing_table(ops_engine, accounts, baseline):
     login(accounts["administrator"])
-    command.downgrade(Config("alembic.ini"), "005")
+    command.downgrade(Config("alembic.ini"), baseline)
+    if baseline == "006":
+        execution_id = enqueue(ops_engine, pipeline(ops_engine))
+        service.execute_claim(ops_engine, service.claim(ops_engine, "migration-preservation"))
+        assert execution_state(ops_engine, execution_id)[0] == "succeeded"
     with ops_engine.begin() as db:
         db.execute(
             text(
-                "INSERT INTO providers (id,name,specialty,location) VALUES (800001,'Synthetic preservation sentinel','Cardiology','Boston')"
-            )
+                "INSERT INTO providers (id,name,specialty,location) VALUES (:id,'Synthetic preservation sentinel','Cardiology','Boston')"
+            ),
+            {"id": 800000 + int(baseline)},
         )
     with ops_engine.connect() as db:
         tables = [name for name in inspect(db).get_table_names() if name != "alembic_version"]
@@ -542,12 +548,13 @@ def test_migration_005_to_006_preserves_every_existing_table(ops_engine, account
                     text("SELECT " + ",".join(f'"{column}"' for column in names) + f' FROM "{table}"')
                 )
             )
-        assert db.scalar(text("SELECT version_num FROM alembic_version")) == "006"
+        assert db.scalar(text("SELECT version_num FROM alembic_version")) == "007"
         assert {
             "pipeline_definitions",
             "pipeline_executions",
             "pipeline_attempts",
             "pipeline_events",
+            "pipeline_workers",
         }.issubset(inspect(db).get_table_names())
 
 

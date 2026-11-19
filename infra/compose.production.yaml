@@ -1,0 +1,122 @@
+# Standalone production configuration. Never combine with the seeded lab Compose file.
+name: carerank-production
+x-runtime: &runtime
+  image: ${BACKEND_IMAGE:?Use an approved ECR image pinned by sha256 digest}
+  user: "1000:1000"
+  read_only: true
+  init: true
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  tmpfs: ["/tmp:rw,noexec,nosuid,size=64m,mode=1777"]
+  pids_limit: 128
+  mem_limit: 768m
+  cpus: 1
+  networks: [runtime]
+  volumes:
+    - ${RDS_CA_FILE:?Mount the verified official RDS CA bundle}:/run/secrets/rds-ca.pem:ro
+x-log-options: &log-options
+  awslogs-region: ${AWS_REGION:?Required}
+  awslogs-group: ${AWS_LOG_GROUP:?Use the CloudFormation log group}
+  awslogs-create-group: "false"
+services:
+  migrate:
+    <<: *runtime
+    profiles: [operator]
+    restart: "no"
+    environment: {DATABASE_URL_FILE: /run/secrets/owner-database-url}
+    secrets: [owner-database-url]
+    command: [alembic, upgrade, head]
+    logging:
+      driver: awslogs
+      options: {<<: *log-options, awslogs-stream: "${RELEASE_ID:?Required}-migrate"}
+  provision:
+    <<: *runtime
+    profiles: [operator]
+    restart: "no"
+    environment:
+      DATABASE_URL_FILE: /run/secrets/owner-database-url
+      RUNTIME_DATABASE_URL_FILE: /run/secrets/api-database-url
+      WORKER_DATABASE_URL_FILE: /run/secrets/worker-database-url
+    secrets: [owner-database-url, api-database-url, worker-database-url]
+    command: [python, -m, app.runtime_role]
+    logging:
+      driver: awslogs
+      options: {<<: *log-options, awslogs-stream: "${RELEASE_ID:?Required}-provision"}
+  api:
+    <<: *runtime
+    restart: unless-stopped
+    networks: [runtime, proxy]
+    environment:
+      APP_ENV: production
+      DATABASE_URL_FILE: /run/secrets/api-database-url
+      AUTH_COOKIE_SECURE: "true"
+      AUTH_ALLOWED_ORIGINS: ${PUBLIC_ORIGIN:?One exact https origin is required}
+      AUTH_TRUSTED_PROXIES: 172.30.84.3/32
+      DQ_ENABLED: "true"
+    secrets: [api-database-url]
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/ready', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    logging:
+      driver: awslogs
+      options: {<<: *log-options, awslogs-stream: "${RELEASE_ID:?Required}-api"}
+  worker:
+    <<: *runtime
+    restart: unless-stopped
+    stop_grace_period: 15s
+    environment:
+      APP_ENV: production
+      DATABASE_URL_FILE: /run/secrets/worker-database-url
+      WORKER_INSTANCE_ID: ${WORKER_INSTANCE_ID:-production-worker-1}
+      DQ_ENABLED: "true"
+    secrets: [worker-database-url]
+    command: [python, -m, app.operations, worker]
+    healthcheck:
+      test: [CMD, python, -m, app.operations, health]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    logging:
+      driver: awslogs
+      options: {<<: *log-options, awslogs-stream: "${RELEASE_ID:?Required}-worker"}
+  web:
+    image: ${WEB_IMAGE:?Use an approved ECR image pinned by sha256 digest}
+    user: "101:101"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=32m,mode=1777"]
+    pids_limit: 64
+    mem_limit: 128m
+    cpus: 0.5
+    restart: unless-stopped
+    ports: ["${WEB_BIND_ADDRESS:?Use the instance private IPv4}:8080:8080"]
+    volumes: ["./nginx.production.conf:/etc/nginx/conf.d/default.conf:ro"]
+    networks:
+      front: {}
+      proxy: {ipv4_address: 172.30.84.3}
+    depends_on:
+      api: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, "http://127.0.0.1:8080/api/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: awslogs
+      options: {<<: *log-options, awslogs-stream: "${RELEASE_ID:?Required}-web"}
+secrets:
+  owner-database-url: {file: "${SECRET_DIR:?Required}/owner-database-url"}
+  api-database-url: {file: "${SECRET_DIR:?Required}/api-database-url"}
+  worker-database-url: {file: "${SECRET_DIR:?Required}/worker-database-url"}
+networks:
+  runtime: {}
+  front: {}
+  proxy:
+    internal: true
+    ipam:
+      config: [{subnet: 172.30.84.0/24, ip_range: 172.30.84.128/25}]

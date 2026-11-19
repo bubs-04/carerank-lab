@@ -7,6 +7,7 @@ from sqlalchemy import exists, func, or_, select, text
 from sqlalchemy.orm import Session
 from ..auth.security import now, utc
 from ..ingestion.models import IngestionRun, ValidationFinding
+from ..observability import request_id
 from .models import Pipeline, Execution, Attempt, JobEvent
 from .schemas import PipelineConfig
 
@@ -37,7 +38,7 @@ def event(db, pipeline_id, execution=None, action="queued", before=None, actor=N
             action=action,
             from_status=before,
             to_status=execution.status if execution else None,
-            details=details or {},
+            details={**(details or {}), **({"request_id": request_id.get()} if request_id.get() else {})},
         )
     )
 

@@ -1,0 +1,15 @@
+{
+  "application_commit": "65f8854fbcc61d8f01f08d245a2fbf80a8b22222",
+  "run_url": "https://github.com/bubs-04/carerank-lab/actions/runs/44421707687",
+  "job_id": 135216082691,
+  "conclusion": "success",
+  "backend_passed": 233,
+  "backend_optional_live_cms_skipped": 1,
+  "frontend_including_live_passed": 65,
+  "script_tests_passed": 15,
+  "playwright_workflows_passed": 12,
+  "production_build_lint_format": "passed",
+  "cloud_template_validation": "passed",
+  "reverse_proxy_source_isolation_and_spoofing": "passed",
+  "scope": "Subsequent documentation-only evidence correction does not change application or test source. No AWS deployment or live CMS capture was performed."
+}

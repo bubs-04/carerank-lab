@@ -1,5 +1,6 @@
 import DataOps from "./DataOps";
 import PipelineOperations from "./PipelineOperations";
+import Reliability from "./Reliability";
 import AnalyticsPage, { ComparisonChart } from "./Analytics";
 import { useState } from "react";
 import {
@@ -522,6 +523,7 @@ export default function App() {
     | "details"
     | "dataops"
     | "operations"
+    | "reliability"
   >("overview");
   const [ids, setIds] = useState<number[]>([]);
   const [inspection, setInspection] = useState<
@@ -578,6 +580,12 @@ export default function App() {
           >
             <Activity size={19} /> Pipeline operations
           </button>
+          <button
+            aria-current={page === "reliability" ? "page" : undefined}
+            onClick={() => setPage("reliability")}
+          >
+            <ShieldCheck size={19} /> Reliability
+          </button>
         </nav>
         <div className="sidebar-note">
           <FlaskConical />
@@ -607,11 +615,15 @@ export default function App() {
                       ? "Data operations"
                       : page === "operations"
                         ? "Pipeline operations"
-                        : "Provider evidence"}
+                        : page === "reliability"
+                          ? "Operational reliability"
+                          : "Provider evidence"}
             </b>
           </div>
           <span className="pill">
-            {page === "dataops" || page === "operations"
+            {page === "dataops" ||
+            page === "operations" ||
+            page === "reliability"
               ? "● Public registry / fixture workspace"
               : "● Synthetic environment"}
           </span>
@@ -619,7 +631,9 @@ export default function App() {
         <div className="disclaimer">
           <ShieldCheck size={16} />
           <span>
-            {page === "dataops" || page === "operations" ? (
+            {page === "dataops" ||
+            page === "operations" ||
+            page === "reliability" ? (
               <>
                 Public registry and labeled test fixtures. No patient data or
                 clinical ratings. Not affiliated with Garner.
@@ -651,6 +665,14 @@ export default function App() {
                 setPage("dataops");
               }}
             />
+          ) : page === "reliability" ? (
+            <Reliability
+              onPipelines={() => setPage("operations")}
+              onDataOperations={() => {
+                setInspection(undefined);
+                setPage("dataops");
+              }}
+            />
           ) : page === "analytics" ? (
             <AnalyticsPage
               open={(next) => {
@@ -672,7 +694,9 @@ export default function App() {
         <footer>
           CareRank Lab{" "}
           <span>
-            {page === "dataops" || page === "operations"
+            {page === "dataops" ||
+            page === "operations" ||
+            page === "reliability"
               ? "Public provenance. Separate test fixtures. No clinical scores."
               : "Transparent methods. Fictional data. Real engineering practice."}
           </span>

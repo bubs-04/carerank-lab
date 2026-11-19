@@ -1,0 +1,23 @@
+{
+  "reviewed_commit": "a9aea181b02f6dd4778655f78021a4ee728e789f",
+  "verified_application_commit": "b2098ce66b666a6d192d3181fd01b4e117fba488",
+  "ci_run": "https://github.com/bubs-04/carerank-lab/actions/runs/44507118297",
+  "ci_conclusion": "success",
+  "backend_passed": 270,
+  "optional_live_cms_skipped": 1,
+  "frontend_including_live_passed": 66,
+  "script_tests_passed": 60,
+  "playwright_passed": 12,
+  "local_regression_and_independent_ci": "passed",
+  "retained_preservation": {
+    "main_tables": 23,
+    "demo_tables": 23,
+    "includes_schema_version_rows": true,
+    "counts_and_sorted_row_sha256_equal": true,
+    "excluded_transient_table": "pipeline_workers",
+    "demo_reset_performed": false
+  },
+  "destructive_mismatch_target": "new disposable carerank_guard_<random> database only",
+  "remote_docker_and_deployment_tests": "mocked; no remote volume or AWS operations",
+  "independent_security_re_review": "requested before merge; not yet approved"
+}

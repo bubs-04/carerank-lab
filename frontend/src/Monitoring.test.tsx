@@ -63,6 +63,7 @@ function mock({
   health = "attention",
   fail = false,
   unavailable = false,
+  mixedHistory = false,
 } = {}) {
   const fetch = vi.fn(async (url: string, _options?: RequestInit) => ({
     ok: !fail,
@@ -120,7 +121,20 @@ function mock({
             ? []
             : [0, 1].map((i) => ({
                 run_id: `trend-${i}`,
-                started_at: run.started_at,
+                started_at: `2026-11-${16 + i}T00:00:00Z`,
+                ingestion_kind: !url.includes("mode=cms")
+                  ? "artificial_fixture"
+                  : mixedHistory && i === 1
+                    ? "offline_archive_replay"
+                    : "fresh_cms_retrieval",
+                archive_captured_at:
+                  url.includes("mode=cms") && mixedHistory && i === 1
+                    ? "2026-10-01T12:00:00Z"
+                    : null,
+                archive_replayed_at:
+                  url.includes("mode=cms") && mixedHistory && i === 1
+                    ? "2026-11-17T00:00:00Z"
+                    : null,
                 received: 5,
                 valid: 4 + i,
                 rejected: 1 - i,
@@ -153,8 +167,46 @@ it("shows explainable health and numerical accessible charts", async () => {
     await screen.findByRole("img", { name: /Accepted record counts/ }),
   ).toBeVisible();
   expect(
-    screen.getByRole("table", { name: /Comparable retrieval counts/ }),
+    screen.getByRole("table", { name: /Comparable ingestion counts/ }),
   ).toHaveTextContent("Accepted");
+});
+it("separates fresh CMS retrieval, archive capture and replay times, and artificial fixtures", async () => {
+  mock({ mixedHistory: true });
+  const { rerender } = render(<Monitoring mode="cms" onInspect={vi.fn()} />);
+  const table = await screen.findByRole("table", {
+    name: /Comparable ingestion counts/,
+  });
+  const fresh = within(table).getByText("Fresh CMS retrieval").closest("tr")!;
+  const replay = within(table)
+    .getByText("Offline archive replay")
+    .closest("tr")!;
+  expect(fresh).toHaveTextContent("Retrieval started:");
+  expect(fresh.querySelector("time")).toHaveAttribute(
+    "dateTime",
+    "2026-11-16T00:00:00Z",
+  );
+  expect(replay).toHaveTextContent("Archive captured:");
+  expect(replay).toHaveTextContent("Replay started:");
+  expect(
+    Array.from(replay.querySelectorAll("time"), (time) => time.dateTime),
+  ).toEqual(["2026-10-01T12:00:00Z", "2026-11-17T00:00:00Z"]);
+  expect(replay).not.toHaveTextContent(/Fresh CMS retrieval|Retrieval started/);
+  expect(fresh).not.toHaveTextContent(/Archive captured|Replay started/);
+  expect(
+    screen.getByText(/Replay time is not a fresh CMS retrieval time/),
+  ).toBeVisible();
+  expect(screen.queryByText("Latest retrieval")).not.toBeInTheDocument();
+  expect(screen.getByText("Latest ingestion")).toBeVisible();
+
+  rerender(<Monitoring mode="fixture" onInspect={vi.fn()} />);
+  await screen.findAllByText("Artificial fixture ingestion");
+  const fixtureTable = screen.getByRole("table", {
+    name: /Comparable ingestion counts/,
+  });
+  expect(fixtureTable).toHaveTextContent("Ingestion started:");
+  expect(fixtureTable).not.toHaveTextContent(
+    /Fresh CMS retrieval|Offline archive replay|Archive captured|Replay started/,
+  );
 });
 it("does not turn no evidence into green health", async () => {
   mock({ empty: true, health: "no_data" });

@@ -1,0 +1,40 @@
+{
+  "scheduled_trigger": "scheduled",
+  "status": "succeeded",
+  "attempts": [
+    {
+      "number": 1,
+      "status": "failed",
+      "error_code": "demo_transient_failure"
+    },
+    {
+      "number": 2,
+      "status": "succeeded",
+      "error_code": null
+    }
+  ],
+  "events": [
+    "queued",
+    "claimed",
+    "retry_scheduled",
+    "claimed",
+    "succeeded"
+  ],
+  "linked_snapshot": true,
+  "metrics": {
+    "completed": 1,
+    "succeeded": 1,
+    "failed": 0,
+    "cancelled": 0,
+    "retried_executions": 1,
+    "success_rate": 1.0,
+    "p50_duration_seconds": 10.976,
+    "p95_duration_seconds": 10.976,
+    "retry_attempts": 1
+  },
+  "worker_healthy": true,
+  "anonymous_denied": true,
+  "missing_csrf_denied": true,
+  "viewer_control_denied": true,
+  "cms_archive_loaded": false
+}

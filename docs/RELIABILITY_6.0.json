@@ -1,0 +1,390 @@
+{
+  "schema": 1,
+  "measured_at_utc": "2026-11-18T18:25:36.727309+00:00",
+  "source_revision": "657ca83a96e60fd7ec10233a25d0d33cc3f32a43",
+  "environment": {
+    "python": "3.12.14",
+    "system": "Linux",
+    "client_logical_cpus": 3,
+    "postgres_image": "postgres:16-alpine",
+    "postgres_cpu_limit": 2,
+    "postgres_memory_limit_mib": 512,
+    "postgres_version": "PostgreSQL 16.16 on x86_64-pc-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit"
+  },
+  "limitations": [
+    "Single shared cloud development host; not production capacity or an SLA.",
+    "Load measures in-process SQLAlchemy query + count + serialization, not HTTP/network latency.",
+    "Docker PostgreSQL crash/start is not AWS RDS failover or host-loss recovery.",
+    "Logical backup excludes cluster roles; runtime credentials must be provisioned separately.",
+    "No live CMS request or paid cloud resource is used."
+  ],
+  "backup_restore": {
+    "source_migration": "007",
+    "target": "new isolated container/database",
+    "consistent_snapshot": true,
+    "tables": {
+      "alembic_version": {
+        "rows": 1,
+        "sha256": "fdadf4e915476f318fdc14c0b9214aa2846c29edbcda535c5b6a789b250bd724"
+      },
+      "auth_events": {
+        "rows": 5,
+        "sha256": "20f09056ab358513a085d66002fe6e3aeeee145a1edcd256241d429d906040d3"
+      },
+      "auth_login_limits": {
+        "rows": 2,
+        "sha256": "935f98b3aaafd2d38d09d960d29e313c2f8a758e5e82851f4b123bf3f914e9b0"
+      },
+      "auth_sessions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "auth_users": {
+        "rows": 3,
+        "sha256": "44401ad51a18c456d2cad23d58a3e972c641c710d39e201db950c22258f2e9df"
+      },
+      "encounters": {
+        "rows": 100000,
+        "sha256": "ffc725cb31fad1de0eeba5f81a1ff92d2fcf3e2b68ccb9bed84658b7a63fa5f2"
+      },
+      "monitor_alerts": {
+        "rows": 8,
+        "sha256": "3ccb2074fb577e489340ae5f32f7d67a97d0e19c1b06a644fad1355483b31f2c"
+      },
+      "monitor_evaluations": {
+        "rows": 24,
+        "sha256": "55a2c5387aa63a72fa36cc593f1f87838da88eec2b79f671b573a9dc9086bcba"
+      },
+      "monitor_events": {
+        "rows": 8,
+        "sha256": "8df1c55f822371b93f61c37e2a768e1255999b6ea5849f77bf1612a0bf1d18d8"
+      },
+      "monitor_rules": {
+        "rows": 12,
+        "sha256": "d7549aa2105f9f2e7c1632119971df3a0fb428e771b2385a3580aaba6771ad81"
+      },
+      "pipeline_attempts": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "pipeline_definitions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "pipeline_events": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "pipeline_executions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "pipeline_runs": {
+        "rows": 1,
+        "sha256": "af8d59437974ed846cb5e5b15f5d8cd1357f024ed1ab4f07afd03c3885b36e6f"
+      },
+      "pipeline_workers": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "providers": {
+        "rows": 1000,
+        "sha256": "41384e9e78c0fbaf1acf42944bb29a974ca7ef7bc79b7e49d77569e013d1e59c"
+      },
+      "registry_changes": {
+        "rows": 1,
+        "sha256": "fbcdd7299d4702be51ef8d22d8defcc126bf045fa03d81576e486d2f69d542b0"
+      },
+      "registry_findings": {
+        "rows": 8,
+        "sha256": "896477341a486f3fee7b6faee7502f5588e728128126aa22dc63f07f47a26a40"
+      },
+      "registry_records": {
+        "rows": 10,
+        "sha256": "d3ebaacc6680a16ea3939f72d7b0a83da89063dd16c3dfe9eb68cb1f54bf399c"
+      },
+      "registry_runs": {
+        "rows": 2,
+        "sha256": "530df0e1ecd5397f72b7987f2451fe88d096bee4fbc24c16a6bbfbdafa86f22d"
+      },
+      "registry_snapshots": {
+        "rows": 2,
+        "sha256": "8685d960d76ff5901061a4217d7ac184157de99a09cd3cf5d20129251483555e"
+      },
+      "registry_sources": {
+        "rows": 1,
+        "sha256": "4c80b41685602109f644742972959605e6d717c75467dc2b93b3a1d7ffd76435"
+      },
+      "scores": {
+        "rows": 1000,
+        "sha256": "a0bc96efda29060cdc1f8038fa6ae7a6c803b174b731fda7dfb5edf46873713d"
+      }
+    },
+    "all_table_fingerprints_equal": true,
+    "dump_bytes": 1273865,
+    "backup_and_fingerprint_seconds": 1.616,
+    "restore_seconds": 1.816
+  },
+  "migration_preservation": {
+    "from": "007",
+    "to": "007",
+    "original_data_tables": 23,
+    "all_original_fingerprints_equal": true,
+    "changed_revision": false
+  },
+  "synthetic_seed": {
+    "seed": 42,
+    "rows": {
+      "providers": 1000,
+      "encounters": 100000,
+      "scores": 1000
+    },
+    "elapsed_seconds": 12.645
+  },
+  "worker_restart": {
+    "fault": "SIGKILL real supervisor and child during fixture fetch",
+    "natural_lease_expiry_seconds": 3,
+    "recovery_seconds": 5.981,
+    "attempts": [
+      {
+        "number": 1,
+        "status": "interrupted",
+        "error_code": "worker_lease_expired"
+      },
+      {
+        "number": 2,
+        "status": "succeeded",
+        "error_code": null
+      }
+    ],
+    "events": [
+      "queued",
+      "claimed",
+      "retry_scheduled",
+      "claimed",
+      "succeeded"
+    ],
+    "published_snapshot_count": 1
+  },
+  "database_restart": {
+    "fault": "SIGKILL PostgreSQL in disposable container during active fetch",
+    "read_failed_while_down": true,
+    "same_supervisor_survived": true,
+    "database_ready_seconds": 6.551,
+    "execution_recovered_seconds": 9.81,
+    "synthetic_counts_preserved": true,
+    "attempts": [
+      {
+        "number": 1,
+        "status": "interrupted",
+        "error_code": "worker_lease_expired"
+      },
+      {
+        "number": 2,
+        "status": "succeeded",
+        "error_code": null
+      }
+    ],
+    "events": [
+      "queued",
+      "claimed",
+      "retry_scheduled",
+      "claimed",
+      "succeeded"
+    ],
+    "published_snapshot_count": 1
+  },
+  "query_load": {
+    "concurrent_clients": 8,
+    "errors": 0,
+    "warmup_requests": 30,
+    "operation": "filtered synthetic provider search: count + page + ORM serialization",
+    "samples": 240,
+    "p50_ms": 51.923,
+    "p95_ms": 147.409,
+    "max_ms": 364.471,
+    "wall_seconds": 2.04,
+    "operations_per_second": 117.63
+  },
+  "query_plan_experiment": {
+    "synthetic_history_rows": 10000,
+    "query": "latest 50 executions of one pipeline, stable creation/id order",
+    "candidate_index": "migration 007: pipeline_executions(pipeline_id,created_at,id), backward scan",
+    "before": {
+      "Plan": {
+        "Node Type": "Limit",
+        "Parallel Aware": false,
+        "Async Capable": false,
+        "Startup Cost": 934.22,
+        "Total Cost": 934.34,
+        "Plan Rows": 50,
+        "Plan Width": 51,
+        "Actual Startup Time": 4.64,
+        "Actual Total Time": 4.645,
+        "Actual Rows": 50,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 477,
+        "Shared Read Blocks": 0,
+        "Shared Dirtied Blocks": 0,
+        "Shared Written Blocks": 0,
+        "Local Hit Blocks": 0,
+        "Local Read Blocks": 0,
+        "Local Dirtied Blocks": 0,
+        "Local Written Blocks": 0,
+        "Temp Read Blocks": 0,
+        "Temp Written Blocks": 0,
+        "Plans": [
+          {
+            "Node Type": "Sort",
+            "Parent Relationship": "Outer",
+            "Parallel Aware": false,
+            "Async Capable": false,
+            "Startup Cost": 934.22,
+            "Total Cost": 959.22,
+            "Plan Rows": 10000,
+            "Plan Width": 51,
+            "Actual Startup Time": 4.639,
+            "Actual Total Time": 4.641,
+            "Actual Rows": 50,
+            "Actual Loops": 1,
+            "Sort Key": [
+              "created_at DESC",
+              "id DESC"
+            ],
+            "Sort Method": "top-N heapsort",
+            "Sort Space Used": 31,
+            "Sort Space Type": "Memory",
+            "Shared Hit Blocks": 477,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0,
+            "Plans": [
+              {
+                "Node Type": "Seq Scan",
+                "Parent Relationship": "Outer",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Relation Name": "pipeline_executions",
+                "Alias": "pipeline_executions",
+                "Startup Cost": 0.0,
+                "Total Cost": 602.02,
+                "Plan Rows": 10000,
+                "Plan Width": 51,
+                "Actual Startup Time": 0.014,
+                "Actual Total Time": 3.015,
+                "Actual Rows": 10000,
+                "Actual Loops": 1,
+                "Filter": "((pipeline_id)::text = '7c07397d-c780-4e23-a1da-156a4c30360e'::text)",
+                "Rows Removed by Filter": 2,
+                "Shared Hit Blocks": 477,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0
+              }
+            ]
+          }
+        ]
+      },
+      "Planning": {
+        "Shared Hit Blocks": 83,
+        "Shared Read Blocks": 0,
+        "Shared Dirtied Blocks": 0,
+        "Shared Written Blocks": 0,
+        "Local Hit Blocks": 0,
+        "Local Read Blocks": 0,
+        "Local Dirtied Blocks": 0,
+        "Local Written Blocks": 0,
+        "Temp Read Blocks": 0,
+        "Temp Written Blocks": 0
+      },
+      "Planning Time": 1.562,
+      "Triggers": [],
+      "Execution Time": 4.667
+    },
+    "after": {
+      "Plan": {
+        "Node Type": "Limit",
+        "Parallel Aware": false,
+        "Async Capable": false,
+        "Startup Cost": 0.41,
+        "Total Cost": 9.63,
+        "Plan Rows": 50,
+        "Plan Width": 51,
+        "Actual Startup Time": 0.036,
+        "Actual Total Time": 0.05,
+        "Actual Rows": 50,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 3,
+        "Shared Read Blocks": 3,
+        "Shared Dirtied Blocks": 0,
+        "Shared Written Blocks": 0,
+        "Local Hit Blocks": 0,
+        "Local Read Blocks": 0,
+        "Local Dirtied Blocks": 0,
+        "Local Written Blocks": 0,
+        "Temp Read Blocks": 0,
+        "Temp Written Blocks": 0,
+        "Plans": [
+          {
+            "Node Type": "Index Scan",
+            "Parent Relationship": "Outer",
+            "Parallel Aware": false,
+            "Async Capable": false,
+            "Scan Direction": "Backward",
+            "Index Name": "ix_pipeline_history",
+            "Relation Name": "pipeline_executions",
+            "Alias": "pipeline_executions",
+            "Startup Cost": 0.41,
+            "Total Cost": 1845.12,
+            "Plan Rows": 10000,
+            "Plan Width": 51,
+            "Actual Startup Time": 0.035,
+            "Actual Total Time": 0.046,
+            "Actual Rows": 50,
+            "Actual Loops": 1,
+            "Index Cond": "((pipeline_id)::text = '7c07397d-c780-4e23-a1da-156a4c30360e'::text)",
+            "Rows Removed by Index Recheck": 0,
+            "Shared Hit Blocks": 3,
+            "Shared Read Blocks": 3,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0
+          }
+        ]
+      },
+      "Planning": {
+        "Shared Hit Blocks": 4,
+        "Shared Read Blocks": 1,
+        "Shared Dirtied Blocks": 0,
+        "Shared Written Blocks": 0,
+        "Local Hit Blocks": 0,
+        "Local Read Blocks": 0,
+        "Local Dirtied Blocks": 0,
+        "Local Written Blocks": 0,
+        "Temp Read Blocks": 0,
+        "Temp Written Blocks": 0
+      },
+      "Planning Time": 0.189,
+      "Triggers": [],
+      "Execution Time": 0.068
+    },
+    "scope": "Controlled ephemeral index experiment; report the existing planner choice and measured timings, not an assumed production speedup."
+  }
+}

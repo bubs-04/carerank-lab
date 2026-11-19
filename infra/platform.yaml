@@ -1,0 +1,241 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CareRank single-host reference platform; creates billable resources only after explicit operator approval.
+Parameters:
+  CertificateArn:
+    Type: String
+    Description: Existing ACM certificate in this region for the approved HTTPS hostname.
+    AllowedPattern: 'arn:[a-z-]+:acm:[a-z0-9-]+:[0-9]{12}:certificate/.+'
+  LatestAmi:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64
+  InstanceType:
+    Type: String
+    Default: t3.small
+    AllowedValues: [t3.small, t3.medium]
+  DatabaseClass:
+    Type: String
+    Default: db.t4g.small
+    AllowedValues: [db.t4g.small, db.t4g.medium]
+  MultiAZ:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+  BackendRepositoryName:
+    Type: String
+    Default: carerank/backend
+    AllowedPattern: '[a-z0-9][a-z0-9._/-]+'
+  WebRepositoryName:
+    Type: String
+    Default: carerank/web
+    AllowedPattern: '[a-z0-9][a-z0-9._/-]+'
+Resources:
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.64.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags: [{Key: Name, Value: !Sub '${AWS::StackName}-vpc'}]
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+  GatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties: {VpcId: !Ref Vpc, InternetGatewayId: !Ref InternetGateway}
+  PublicA:
+    Type: AWS::EC2::Subnet
+    Properties: {VpcId: !Ref Vpc, CidrBlock: 10.64.0.0/24, AvailabilityZone: !Select [0, !GetAZs '']}
+  PublicB:
+    Type: AWS::EC2::Subnet
+    Properties: {VpcId: !Ref Vpc, CidrBlock: 10.64.1.0/24, AvailabilityZone: !Select [1, !GetAZs '']}
+  PrivateA:
+    Type: AWS::EC2::Subnet
+    Properties: {VpcId: !Ref Vpc, CidrBlock: 10.64.10.0/24, AvailabilityZone: !Select [0, !GetAZs '']}
+  PrivateB:
+    Type: AWS::EC2::Subnet
+    Properties: {VpcId: !Ref Vpc, CidrBlock: 10.64.11.0/24, AvailabilityZone: !Select [1, !GetAZs '']}
+  PublicRoutes:
+    Type: AWS::EC2::RouteTable
+    Properties: {VpcId: !Ref Vpc}
+  InternetRoute:
+    Type: AWS::EC2::Route
+    DependsOn: GatewayAttachment
+    Properties: {RouteTableId: !Ref PublicRoutes, DestinationCidrBlock: 0.0.0.0/0, GatewayId: !Ref InternetGateway}
+  RouteA:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: {SubnetId: !Ref PublicA, RouteTableId: !Ref PublicRoutes}
+  RouteB:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: {SubnetId: !Ref PublicB, RouteTableId: !Ref PublicRoutes}
+  AppGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: App host has no SSH ingress; ALB ingress is added separately.
+      VpcId: !Ref Vpc
+      SecurityGroupEgress:
+        - {IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 0.0.0.0/0}
+        - {IpProtocol: tcp, FromPort: 5432, ToPort: 5432, DestinationSecurityGroupId: !Ref DatabaseGroup}
+  LoadBalancerGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: HTTPS public entry; HTTP redirects to HTTPS.
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        - {IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 0.0.0.0/0}
+        - {IpProtocol: tcp, FromPort: 80, ToPort: 80, CidrIp: 0.0.0.0/0}
+      SecurityGroupEgress:
+        - {IpProtocol: tcp, FromPort: 8080, ToPort: 8080, DestinationSecurityGroupId: !Ref AppGroup}
+  AppIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties: {GroupId: !Ref AppGroup, IpProtocol: tcp, FromPort: 8080, ToPort: 8080, SourceSecurityGroupId: !Ref LoadBalancerGroup}
+  DatabaseGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Private PostgreSQL; only the application security group can connect.
+      VpcId: !Ref Vpc
+  DatabaseIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties: {GroupId: !Ref DatabaseGroup, IpProtocol: tcp, FromPort: 5432, ToPort: 5432, SourceSecurityGroupId: !Ref AppGroup}
+  DatabaseSubnets:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties: {DBSubnetGroupDescription: Isolated database subnets with no Internet route, SubnetIds: [!Ref PrivateA, !Ref PrivateB]}
+  DatabaseParameters:
+    Type: AWS::RDS::DBParameterGroup
+    Properties:
+      Description: Enforce encrypted PostgreSQL transport.
+      Family: postgres16
+      Parameters: {rds.force_ssl: '1'}
+  Database:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Snapshot
+    UpdateReplacePolicy: Snapshot
+    Properties:
+      Engine: postgres
+      EngineVersion: '16'
+      DBInstanceClass: !Ref DatabaseClass
+      DBName: carerank
+      MasterUsername: carerank_owner
+      ManageMasterUserPassword: true
+      AllocatedStorage: '20'
+      MaxAllocatedStorage: 100
+      StorageType: gp3
+      StorageEncrypted: true
+      PubliclyAccessible: false
+      MultiAZ: !Ref MultiAZ
+      DeletionProtection: true
+      BackupRetentionPeriod: 7
+      CopyTagsToSnapshot: true
+      AutoMinorVersionUpgrade: true
+      DBSubnetGroupName: !Ref DatabaseSubnets
+      DBParameterGroupName: !Ref DatabaseParameters
+      VPCSecurityGroups: [!Ref DatabaseGroup]
+      EnableCloudwatchLogsExports: [postgresql, upgrade]
+  ApiSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Description: CareRank restricted API credential; provision role after migrations.
+      GenerateSecretString: {SecretStringTemplate: '{"username":"carerank_api"}', GenerateStringKey: password, PasswordLength: 48, ExcludePunctuation: true}
+  WorkerSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Description: CareRank restricted worker credential; never used for HTTP requests.
+      GenerateSecretString: {SecretStringTemplate: '{"username":"carerank_worker"}', GenerateStringKey: password, PasswordLength: 48, ExcludePunctuation: true}
+  ApplicationLogs:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties: {LogGroupName: !Sub '/carerank/${AWS::StackName}', RetentionInDays: 30}
+  InstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement: [{Effect: Allow, Principal: {Service: ec2.amazonaws.com}, Action: 'sts:AssumeRole'}]
+      ManagedPolicyArns: [!Sub 'arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore']
+      Policies:
+        - PolicyName: ApplicationRuntime
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: ['secretsmanager:GetSecretValue']
+                Resource: [!GetAtt Database.MasterUserSecret.SecretArn, !Ref ApiSecret, !Ref WorkerSecret]
+              - Effect: Allow
+                Action: ['logs:CreateLogStream', 'logs:PutLogEvents']
+                Resource: !GetAtt ApplicationLogs.Arn
+              - {Effect: Allow, Action: ['ecr:GetAuthorizationToken'], Resource: '*'}
+              - Effect: Allow
+                Action: ['ecr:BatchCheckLayerAvailability', 'ecr:GetDownloadUrlForLayer', 'ecr:BatchGetImage']
+                Resource:
+                  - !Sub 'arn:${AWS::Partition}:ecr:${AWS::Region}:${AWS::AccountId}:repository/${BackendRepositoryName}'
+                  - !Sub 'arn:${AWS::Partition}:ecr:${AWS::Region}:${AWS::AccountId}:repository/${WebRepositoryName}'
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties: {Roles: [!Ref InstanceRole]}
+  ApplicationHost:
+    Type: AWS::EC2::Instance
+    DependsOn: InternetRoute
+    Properties:
+      ImageId: !Ref LatestAmi
+      InstanceType: !Ref InstanceType
+      IamInstanceProfile: !Ref InstanceProfile
+      MetadataOptions: {HttpTokens: required, HttpPutResponseHopLimit: 1, HttpEndpoint: enabled}
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs: {Encrypted: true, VolumeSize: 20, VolumeType: gp3, DeleteOnTermination: true}
+      NetworkInterfaces:
+        - {AssociatePublicIpAddress: true, DeviceIndex: '0', SubnetId: !Ref PublicA, GroupSet: [!Ref AppGroup]}
+      UserData:
+        Fn::Base64: |
+          #!/bin/bash
+          set -euo pipefail
+          dnf install -y docker
+          systemctl enable --now docker
+          # No app startup, migration, accounts, deployment or secrets in UserData.
+      Tags: [{Key: Name, Value: !Sub '${AWS::StackName}-application'}]
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Scheme: internet-facing
+      Type: application
+      Subnets: [!Ref PublicA, !Ref PublicB]
+      SecurityGroups: [!Ref LoadBalancerGroup]
+      LoadBalancerAttributes:
+        - {Key: deletion_protection.enabled, Value: 'true'}
+        - {Key: routing.http.drop_invalid_header_fields.enabled, Value: 'true'}
+        - {Key: routing.http.xff_header_processing.mode, Value: append}
+        - {Key: routing.http.desync_mitigation_mode, Value: strictest}
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      VpcId: !Ref Vpc
+      TargetType: instance
+      Protocol: HTTP
+      Port: 8080
+      HealthCheckPath: /api/ready
+      Matcher: {HttpCode: '200'}
+      Targets: [{Id: !Ref ApplicationHost, Port: 8080}]
+  HttpsListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 443
+      Protocol: HTTPS
+      SslPolicy: ELBSecurityPolicy-TLS13-1-2-2021-06
+      Certificates: [{CertificateArn: !Ref CertificateArn}]
+      DefaultActions: [{Type: forward, TargetGroupArn: !Ref TargetGroup}]
+  HttpRedirect:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions: [{Type: redirect, RedirectConfig: {Protocol: HTTPS, Port: '443', StatusCode: HTTP_301}}]
+Outputs:
+  HostId: {Value: !Ref ApplicationHost}
+  HostPrivateIp: {Value: !GetAtt ApplicationHost.PrivateIp}
+  HttpsDns: {Value: !GetAtt LoadBalancer.DNSName}
+  DatabaseEndpoint: {Value: !GetAtt Database.Endpoint.Address}
+  OwnerSecretArn: {Value: !GetAtt Database.MasterUserSecret.SecretArn}
+  ApiSecretArn: {Value: !Ref ApiSecret}
+  WorkerSecretArn: {Value: !Ref WorkerSecret}
+  LogGroup: {Value: !Ref ApplicationLogs}

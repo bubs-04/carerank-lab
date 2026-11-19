@@ -1,0 +1,84 @@
+# Standalone, local-only demo; never combine this file with production Compose.
+name: carerank-demo-v6
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: carerank_demo_owner
+      POSTGRES_PASSWORD: ${DEMO_OWNER_PASSWORD:?Run python scripts/demo.py start}
+      POSTGRES_DB: carerank_demo
+    volumes: [demo_pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U carerank_demo_owner -d carerank_demo]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+  migrate:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://carerank_demo_owner:${DEMO_OWNER_PASSWORD}@db:5432/carerank_demo
+    command: [alembic, upgrade, head]
+    depends_on:
+      db: {condition: service_healthy}
+  prepare:
+    build: ./backend
+    user: "${DEMO_UID:-1000}:${DEMO_GID:-1000}"
+    environment:
+      APP_ENV: development
+      DATABASE_URL: postgresql+psycopg://carerank_demo_owner:${DEMO_OWNER_PASSWORD}@db:5432/carerank_demo
+    volumes: [./.demo:/demo:ro, ./demo:/archive:ro]
+    command: [python, -m, app.demo, --accounts, /demo/accounts.json, --cms-archive, /archive/cms-archive.json]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+  runtime:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://carerank_demo_owner:${DEMO_OWNER_PASSWORD}@db:5432/carerank_demo
+      RUNTIME_DATABASE_URL: postgresql+psycopg://carerank_demo_api:${DEMO_API_PASSWORD}@db:5432/carerank_demo
+      WORKER_DATABASE_URL: postgresql+psycopg://carerank_demo_worker:${DEMO_WORKER_PASSWORD}@db:5432/carerank_demo
+    command: [python, -m, app.runtime_role]
+    depends_on:
+      prepare: {condition: service_completed_successfully}
+  api:
+    build: ./backend
+    environment:
+      APP_ENV: development
+      AUTH_COOKIE_SECURE: 'false'
+      AUTH_ALLOWED_ORIGINS: http://127.0.0.1:8086,http://localhost:8086
+      AUTH_TRUSTED_PROXIES: 172.30.86.3/32
+      DATABASE_URL: postgresql+psycopg://carerank_demo_api:${DEMO_API_PASSWORD}@db:5432/carerank_demo
+    networks: {default: {}, proxy: {}}
+    depends_on:
+      runtime: {condition: service_completed_successfully}
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/ready', timeout=3)"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+  worker:
+    build: ./backend
+    environment:
+      APP_ENV: development
+      DATABASE_URL: postgresql+psycopg://carerank_demo_worker:${DEMO_WORKER_PASSWORD}@db:5432/carerank_demo
+    command: [python, -m, app.operations, worker]
+    restart: unless-stopped
+    depends_on:
+      runtime: {condition: service_completed_successfully}
+  web:
+    build: ./frontend
+    ports: [127.0.0.1:8086:8080]
+    networks:
+      front: {}
+      proxy: {ipv4_address: 172.30.86.3}
+    depends_on:
+      api: {condition: service_healthy}
+volumes:
+  demo_pgdata:
+    name: carerank-demo-v6-pgdata
+    labels: {carerank.demo: 'v6'}
+networks:
+  front: {}
+  proxy:
+    internal: true
+    ipam:
+      config: [{subnet: 172.30.86.0/24, ip_range: 172.30.86.128/25}]

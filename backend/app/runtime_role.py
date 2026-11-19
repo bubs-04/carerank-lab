@@ -12,6 +12,7 @@ import psycopg
 from psycopg import sql
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import ArgumentError
+from .secrets import resolve_secret
 
 READ_TABLES = (
     "providers",
@@ -105,6 +106,8 @@ def provision(owner_url: str, runtime_url: str, worker: bool = False):
             # Workers can publish registry/monitoring evidence, but cannot administer
             # identities, synthetic data, schema or append-only audit history.
             statements = statements[:4] + [
+                sql.SQL("GRANT SELECT ON alembic_version TO {}"),
+                sql.SQL("GRANT SELECT, INSERT, UPDATE, DELETE ON pipeline_workers TO {}"),
                 sql.SQL(
                     "GRANT SELECT ON registry_sources, registry_snapshots, registry_runs, registry_records, registry_findings, registry_changes, monitor_rules, monitor_evaluations, monitor_alerts, monitor_events, pipeline_definitions, pipeline_executions, pipeline_attempts, pipeline_events TO {}"
                 ),
@@ -117,6 +120,7 @@ def provision(owner_url: str, runtime_url: str, worker: bool = False):
             ]
         else:
             statements += [
+                sql.SQL("GRANT SELECT ON alembic_version, pipeline_workers TO {}"),
                 sql.SQL("GRANT SELECT, INSERT, UPDATE ON pipeline_definitions TO {}"),
                 sql.SQL("GRANT SELECT, INSERT ON pipeline_executions TO {}"),
                 sql.SQL(
@@ -136,14 +140,17 @@ def provision(owner_url: str, runtime_url: str, worker: bool = False):
 
 def main():
     try:
-        if os.environ.get("WORKER_DATABASE_URL"):
-            owner = make_url(os.environ["DATABASE_URL"])
-            api = make_url(os.environ["RUNTIME_DATABASE_URL"])
-            worker = make_url(os.environ["WORKER_DATABASE_URL"])
+        owner_url = resolve_secret("DATABASE_URL")
+        api_url = resolve_secret("RUNTIME_DATABASE_URL")
+        if os.environ.get("WORKER_DATABASE_URL") or os.environ.get("WORKER_DATABASE_URL_FILE"):
+            owner = make_url(owner_url)
+            api = make_url(api_url)
+            worker_url = resolve_secret("WORKER_DATABASE_URL")
+            worker = make_url(worker_url)
             if worker.username == api.username or worker.password in {owner.password, api.password}:
                 raise ValueError("Worker, API and owner require distinct logins and passwords")
-            provision(os.environ["DATABASE_URL"], os.environ["WORKER_DATABASE_URL"], worker=True)
-        provision(os.environ["DATABASE_URL"], os.environ["RUNTIME_DATABASE_URL"])
+            provision(owner_url, worker_url, worker=True)
+        provision(owner_url, api_url)
     except (KeyError, ValueError, ArgumentError, psycopg.Error):
         # PostgreSQL errors can include the password-bearing ALTER ROLE statement.
         print(
